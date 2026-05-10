@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DXpedition Tracker — Manual de usuario</title>
+<style>
+:root {
+  --bg:#0d1b2a;--bg2:#112233;--bg3:#0a1520;
+  --card:#0f1e30;--bdr:#1e6eb5;--acc:#1e8bd4;--acc2:#155e99;
+  --t1:#d8e8f5;--t2:#7a9ab8;--t3:#3a5a78;
+  --sep:#1a2e45;--ibg:#08121e;
+  --utc:#f0c040;--loc:#80c8ff;
+  --ok:#50d870;--warn:#f0c040;--err:#ff7070;
+  --conf-bg:#3d0a0a;--conf-t:#ff7070;
+  --work-bg:#0a2e14;--work-t:#50d870;
+  --cell-e:#0a1828;--cell-et:#2a4a6a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#f0f4f8;font-family:'Segoe UI',Arial,sans-serif;color:#1a2a3a;line-height:1.6}
+
+.page{max-width:960px;margin:0 auto;padding:2rem 1.5rem 4rem}
+
+/* typography */
+h1{font-size:28px;font-weight:700;color:#0d1b2a;margin-bottom:.3rem}
+h1 span{color:var(--acc)}
+.subtitle{font-size:15px;color:#5a7a9a;margin-bottom:2rem}
+h2{font-size:20px;font-weight:700;color:#0d1b2a;margin:2.5rem 0 1rem;padding-bottom:.5rem;border-bottom:2px solid var(--bdr);display:flex;align-items:center;gap:8px}
+h2 .icon{font-size:18px}
+h3{font-size:14px;font-weight:700;color:#0d1b2a;margin:.8rem 0 .4rem;text-transform:uppercase;letter-spacing:.5px}
+p{font-size:14px;color:#3a5a7a;margin-bottom:.75rem}
+strong{color:#0d1b2a}
+code{font-family:'Courier New',monospace;font-size:12px;background:#e0eaf4;padding:1px 5px;border-radius:3px;color:#1a4a6a}
+ul{padding-left:1.3rem;margin-bottom:.75rem}
+li{font-size:14px;color:#3a5a7a;margin-bottom:.3rem;line-height:1.6}
+
+.notice{background:#e8f4fd;border-left:4px solid var(--acc);border-radius:0 6px 6px 0;padding:.75rem 1rem;margin:.75rem 0;font-size:13px;color:#1a4a7a}
+.notice.readonly{background:#e8fdf0;border-left-color:#2da84a;color:#1a4a2a}
+.notice strong{color:inherit}
+
+/* badges */
+.badge{display:inline-block;font-size:11px;padding:2px 9px;border-radius:12px;font-weight:700;margin-right:4px}
+.badge-blue{background:#c5e0f5;color:#0a3a6a}
+.badge-green{background:#c5efd5;color:#0a3a1a}
+
+/* info grid */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:1rem 0}
+.info-card{background:#fff;border:1px solid #c5d5e5;border-radius:8px;padding:1rem 1.2rem}
+
+/* table */
+.doc-table{width:100%;border-collapse:collapse;font-size:13px;margin:.75rem 0}
+.doc-table th{text-align:left;padding:7px 12px;background:#e0eaf4;font-weight:700;font-size:12px;border:1px solid #c0d0e0;color:#1a3a5a}
+.doc-table td{padding:7px 12px;border:1px solid #d0dde8;color:#3a5a7a}
+.doc-table tr:nth-child(even) td{background:#f5f9fd}
+
+/* steps */
+.steps{list-style:none;padding:0;counter-reset:step}
+.steps li{counter-increment:step;display:flex;gap:10px;margin-bottom:.75rem;font-size:14px;color:#3a5a7a;align-items:flex-start}
+.steps li::before{content:counter(step);width:22px;height:22px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px}
+
+/* ── SCREEN MOCKUP ── */
+.screen-wrap{border-radius:10px;overflow:hidden;border:2px solid var(--bdr);margin:1.2rem 0;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.screen-chrome{background:#0a1220;padding:5px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--sep)}
+.sc-dot{width:9px;height:9px;border-radius:50%}
+.sc-url{font-size:11px;color:var(--t2);margin-left:6px}
+
+.topbar{background:var(--bg2);height:54px;display:flex;align-items:center;padding:0 12px;gap:10px;border-bottom:1px solid var(--sep)}
+.app-title{font-size:15px;font-weight:700;color:var(--acc)}
+.spacer{flex:1}
+.clk{text-align:center}
+.clk-lbl{font-size:8px;color:var(--t2)}
+.clk-val{font-size:13px;font-weight:700}
+
+.rotor-w{display:flex;align-items:center;gap:8px;background:var(--ibg);border:1.5px solid var(--bdr);border-radius:10px;padding:5px 12px;flex-shrink:0}
+.rw-az{font-size:17px;font-weight:700;color:var(--utc);font-family:'Courier New',monospace;min-width:46px}
+.rw-st{font-size:9px;color:var(--ok)}
+.rw-stop{background:var(--conf-bg);border:1.5px solid #7a1a1a;color:var(--conf-t);border-radius:5px;padding:5px 13px;font-size:12px;font-weight:700;white-space:nowrap}
+
+.subbar{background:var(--bg2);padding:5px 12px;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--sep);font-size:10px;color:var(--t2);flex-wrap:nowrap;overflow:hidden}
+.sb-sep{width:1px;height:18px;background:var(--sep);flex-shrink:0}
+.cb{display:flex;align-items:center;gap:2px}
+.cb input{width:10px;height:10px;accent-color:var(--acc)}
+.finput{background:var(--ibg);border:1px solid var(--sep);color:var(--t1);border-radius:3px;padding:2px 5px;font-size:10px}
+.fbtn{background:var(--ibg);border:1px solid var(--sep);color:var(--t2);border-radius:3px;padding:2px 6px;font-size:9px;cursor:pointer;white-space:nowrap}
+
+.bandbar{background:var(--bg3);padding:3px 12px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--sep)}
+.pill{font-size:9px;font-weight:700;border:1px solid var(--sep);border-radius:3px;padding:1px 5px;color:var(--t2);background:var(--ibg)}
+.pill.on{background:var(--acc2);border-color:var(--acc);color:#fff}
+
+.ctybar{background:var(--bg3);padding:2px 12px;font-size:9px;color:var(--t2);border-bottom:1px solid var(--sep);display:flex;gap:8px;align-items:center}
+.ctybdg{background:var(--work-bg);color:var(--ok);font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
+.card{background:var(--card);border:1.5px solid var(--bdr);border-radius:7px;overflow:hidden}
+.card-hdr{background:var(--acc);padding:4px 6px;display:flex;align-items:center;gap:4px}
+.card-call{flex:1;text-align:center;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:3px;padding:2px 4px;font-size:11px;font-weight:700;font-family:'Courier New',monospace;letter-spacing:.5px}
+.cbtn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:3px;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center}
+.card-ctry{display:flex;justify-content:space-between;padding:2px 5px;background:var(--ibg);border-bottom:1px solid var(--sep);font-size:8px;color:var(--t2)}
+.card-ctry .cn{font-weight:700;color:var(--t1)}
+.card-geo{display:flex;padding:2px 3px;gap:2px;border-bottom:1px solid var(--sep);background:var(--ibg)}
+.gi{flex:1;text-align:center}
+.gl{font-size:6px;color:var(--t2);text-transform:uppercase}
+.gv{font-size:10px;font-weight:700}
+.gsp{color:#60b0ff}.glp{color:#f0a060}.gd{color:var(--ok)}
+table{width:100%;border-collapse:collapse}
+th{font-size:7px;color:var(--t2);padding:2px;text-align:center;background:var(--ibg);border-bottom:1px solid var(--sep)}
+td{text-align:center;font-size:8px;font-weight:700;padding:2px 1px;border:1px solid var(--sep)}
+.sc{background:var(--conf-bg);color:var(--conf-t)}
+.sw{background:var(--work-bg);color:var(--ok)}
+.sn{background:#fff;color:#111}
+.se{background:var(--cell-e);color:#2a4a6a}
+
+.legend{display:flex;gap:10px;padding:4px 8px;border-top:1px solid var(--sep);background:var(--bg3);flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:3px;font-size:8px;color:var(--t2)}
+.ls{width:16px;height:13px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700}
+
+.prop-good{color:#50d870}.prop-ok{color:#f0c040}.prop-bad{color:#ff7070}
+
+/* cty section */
+.cty-box{background:var(--bg2);border:1.5px solid var(--bdr);border-radius:8px;padding:12px 16px;margin:.75rem 0;display:flex;gap:16px;align-items:flex-start}
+.cty-icon{width:40px;height:40px;background:var(--acc2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.cty-text{font-size:12px;color:var(--t1);line-height:1.6}
+.cty-text strong{color:#fff}
+
+/* tray */
+.tray-row{display:flex;gap:1.5rem;flex-wrap:wrap;margin:1rem 0;align-items:flex-start}
+.tray-icons-box{background:#fff;border:1px solid #c5d5e5;border-radius:8px;padding:1rem;min-width:200px}
+.tray-icon-row{display:flex;align-items:center;gap:8px;font-size:13px;color:#3a5a7a;margin-bottom:.5rem}
+.dot{width:13px;height:13px;border-radius:50%;flex-shrink:0}
+.tray-menu-box{background:var(--bg2);border-radius:8px;overflow:hidden;min-width:190px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.tmi{padding:7px 14px;color:var(--t1);border-bottom:1px solid var(--sep);font-size:12px}
+.tmi:last-child{border:none}
+.tms{height:1px;background:var(--sep)}
+.tray-info-box{background:#fff;border:1px solid #c5d5e5;border-radius:8px;padding:1rem;flex:1;min-width:200px}
+
+/* warn modal */
+.warn-wrap{background:#c0c8d0;border-radius:10px;padding:2rem;display:flex;align-items:center;justify-content:center;margin:1rem 0}
+.warn-modal{background:var(--bg2);border:1px solid var(--sep);border-top:3px solid var(--err);border-radius:10px;padding:20px 24px;width:320px;text-align:center}
+.wicon{font-size:26px;margin-bottom:.5rem}
+.wt{font-size:13px;font-weight:700;color:var(--err);margin-bottom:.5rem}
+.wm{font-size:11px;color:var(--t2);margin-bottom:1rem;line-height:1.6}
+.wbtn{background:var(--conf-bg);border:1.5px solid #7a1a1a;color:var(--err);border-radius:5px;padding:6px 24px;font-size:12px;font-weight:700}
+
+/* footer */
+.footer{margin-top:3rem;padding-top:1.5rem;border-top:1px solid #c5d5e5;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#7a9ab8}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>📡 DXpedition <span>Tracker</span></h1>
+
+  <div style="display:flex;gap:8px;margin-bottom:1.5rem;flex-wrap:wrap">
+    <span class="badge badge-blue">Docker / NAS</span>
+    <span class="badge badge-green">Windows .exe</span>
+  </div>
+
+  <p>Dashboard web para el seguimiento en tiempo real de DXpediciones activas. Muestra el estado banda/modo de cada expedición cruzando el log de HRD, Swisslog, Log4OM o ADIF con la base de datos de entidades DXCC (cty.dat), e incluye control de rotor de azimut ARS-USB.</p>
+
+  <div class="notice">
+    <strong>Dos ejecutables, un solo arranque.</strong> La aplicación Windows se compone de dos ejecutables: <code>DXpeditionTracker.exe</code> (dashboard principal) y <code>rotor_tray_exe.exe</code> (control del rotor ARS-USB). Solo es necesario lanzar <strong>DXpeditionTracker.exe</strong> — este arranca automáticamente el tray del rotor en segundo plano.
+  </div>
+
+  <div class="notice readonly">
+    <strong>Solo lectura.</strong> Esta aplicación <strong>no escribe ni modifica nada</strong> en los logs de HRD, Swisslog, Log4OM ni ADIF. Únicamente lee los datos para mostrarlos en el dashboard.
+  </div>
+
+  <div class="notice">
+    <strong>Importante.</strong> La aplicación carga <strong>todos los contactos realizados con la entidad DXCC (país)</strong> hasta la fecha, no solo los realizados con el indicativo exacto de la DXpedición. La celda ✕ "recién trabajado" sirve precisamente para recordar que esa estación específica ha sido trabajada en esa banda/modo durante la expedición activa.
+  </div>
+
+  <!-- ════════════════════ VISTA PRINCIPAL -->
+  <h2><span class="icon">🖥</span> Vista principal del dashboard</h2>
+  <p>El dashboard se abre automáticamente en el navegador al lanzar la aplicación. Está dividido en cinco zonas horizontales más la cuadrícula de tarjetas.</p>
+
+  <div class="screen-wrap">
+    <div class="screen-chrome">
+      <div class="sc-dot" style="background:#ff6060"></div>
+      <div class="sc-dot" style="background:#f0c040"></div>
+      <div class="sc-dot" style="background:#50d870"></div>
+      <span class="sc-url">localhost:8766</span>
+    </div>
+    <div class="topbar">
+      <span class="app-title">📡 DXpedition Tracker</span>
+      <div class="clk" style="margin-left:6px"><div class="clk-lbl">UTC</div><div class="clk-val" style="color:var(--utc)">14:22:05</div></div>
+      <div class="clk" style="margin-left:8px"><div class="clk-lbl">Local</div><div class="clk-val" style="color:var(--loc)">16:22:05</div></div>
+      <div class="spacer"></div>
+      <div class="rotor-w">
+        <svg viewBox="0 0 56 56" width="44" height="44"><circle cx="28" cy="28" r="25" fill="var(--ibg)" stroke="var(--bdr)" stroke-width="1.5"/><circle cx="28" cy="28" r="22" fill="none" stroke="var(--sep)" stroke-width=".5" stroke-dasharray="3 4"/><text x="28" y="11" text-anchor="middle" font-size="8" fill="var(--t2)" font-family="sans-serif" font-weight="700">N</text><text x="28" y="51" text-anchor="middle" font-size="8" fill="var(--t2)" font-family="sans-serif">S</text><text x="7" y="31" text-anchor="middle" font-size="8" fill="var(--t2)" font-family="sans-serif">W</text><text x="49" y="31" text-anchor="middle" font-size="8" fill="var(--t2)" font-family="sans-serif">E</text><line x1="28" y1="28" x2="40" y2="12" stroke="var(--utc)" stroke-width="2.5" stroke-linecap="round"/><circle cx="28" cy="28" r="3.5" fill="var(--utc)"/></svg>
+        <div><div class="rw-az">127°</div><div class="rw-st">● Online</div></div>
+        <div class="rw-stop">■ Stop</div>
+      </div>
+      <div class="spacer"></div>
+      <span style="font-size:10px;color:var(--t2)">CTY 4041 · HRD ✓</span>
+      <button class="fbtn" style="margin-left:8px;font-size:10px;padding:3px 8px">+ New DXpedition</button>
+    </div>
+    <div class="subbar">
+      <span>Locator:</span><div class="finput" style="width:68px">JN01nq</div>
+      <div class="sb-sep"></div>
+      <span>Modes:</span>
+      <label class="cb"><input type="checkbox" checked><span>CW</span></label>
+      <label class="cb"><input type="checkbox" checked><span>SSB</span></label>
+      <label class="cb"><input type="checkbox" checked><span>FT8</span></label>
+      <label class="cb"><input type="checkbox" checked><span>FT4</span></label>
+      <label class="cb"><input type="checkbox"><span>RTTY</span></label>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0">
+        <span>Log:</span>
+        <div class="finput" style="width:80px">HRD XML</div>
+        <span>Path:</span>
+        <div class="finput" style="width:140px;font-size:9px;overflow:hidden;white-space:nowrap">C:\Users\EA3CV\HRD\...</div>
+        <button class="fbtn">📁</button>
+        <button class="fbtn">↺</button>
+      </div>
+    </div>
+    <div class="bandbar">
+      <span style="font-size:9px;color:var(--t2);flex-shrink:0">Bands:</span>
+      <span class="pill">13cm</span><span class="pill">23cm</span>
+      <span class="pill on">6m</span><span class="pill on">8m</span><span class="pill on">10m</span><span class="pill on">12m</span><span class="pill on">15m</span><span class="pill on">17m</span><span class="pill on">20m</span><span class="pill on">30m</span><span class="pill on">40m</span><span class="pill on">60m</span><span class="pill on">80m</span><span class="pill on">160m</span>
+    </div>
+    <div class="ctybar">
+      <span>cty.dat:</span><span class="ctybdg">✓ 4041 entities</span><span>2025-01-15</span>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="card-hdr"><div class="card-call">VK9DX</div><div class="cbtn">↺</div><div class="cbtn">✕</div></div>
+        <div class="card-ctry"><span class="cn">Norfolk Island</span><span>OC · CQ28 · ITU60</span></div>
+        <div class="card-geo">
+          <div class="gi"><div class="gl">SP</div><div class="gv gsp">52°</div></div>
+          <div class="gi"><div class="gl">LP</div><div class="gv glp">232°</div></div>
+          <div class="gi"><div class="gl">Dist</div><div class="gv gd">16420km</div></div>
+        </div>
+        <table><thead><tr><th>CW</th><th>SSB</th><th>FT8</th><th>FT4</th><th>SP%</th><th>LP%</th></tr></thead>
+        <tbody>
+          <tr><td class="se"></td><td class="se"></td><td class="sc">C</td><td class="se"></td><td><span class="prop-good">89%</span></td><td><span class="prop-ok">61%</span></td></tr>
+          <tr><td class="se"></td><td class="sw">W</td><td class="sc">C</td><td class="se"></td><td><span class="prop-good">82%</span></td><td><span class="prop-ok">54%</span></td></tr>
+          <tr><td class="sw">W</td><td class="sw">W</td><td class="sn">✕</td><td class="sw">W</td><td><span class="prop-good">76%</span></td><td><span class="prop-ok">48%</span></td></tr>
+          <tr><td class="se"></td><td class="se"></td><td class="sw">W</td><td class="se"></td><td><span class="prop-ok">45%</span></td><td><span class="prop-bad">22%</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="card-call">TX5N</div><div class="cbtn">↺</div><div class="cbtn">✕</div></div>
+        <div class="card-ctry"><span class="cn">Clipperton Island</span><span>NA · CQ7 · ITU8</span></div>
+        <div class="card-geo">
+          <div class="gi"><div class="gl">SP</div><div class="gv gsp">288°</div></div>
+          <div class="gi"><div class="gl">LP</div><div class="gv glp">108°</div></div>
+          <div class="gi"><div class="gl">Dist</div><div class="gv gd">10850km</div></div>
+        </div>
+        <table><thead><tr><th>CW</th><th>SSB</th><th>FT8</th><th>FT4</th><th>SP%</th><th>LP%</th></tr></thead>
+        <tbody>
+          <tr><td class="sw">W</td><td class="sc">C</td><td class="sc">C</td><td class="se"></td><td><span class="prop-good">91%</span></td><td><span class="prop-ok">58%</span></td></tr>
+          <tr><td class="se"></td><td class="se"></td><td class="sn">✕</td><td class="se"></td><td><span class="prop-good">84%</span></td><td><span class="prop-ok">51%</span></td></tr>
+          <tr><td class="sc">C</td><td class="sc">C</td><td class="sc">C</td><td class="sw">W</td><td><span class="prop-good">78%</span></td><td><span class="prop-ok">44%</span></td></tr>
+          <tr><td class="se"></td><td class="se"></td><td class="sw">W</td><td class="se"></td><td><span class="prop-ok">42%</span></td><td><span class="prop-bad">18%</span></td></tr>
+        </tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="card-call">3Y0J</div><div class="cbtn">↺</div><div class="cbtn">✕</div></div>
+        <div class="card-ctry"><span class="cn">Bouvet Island</span><span>AF · CQ38 · ITU67</span></div>
+        <div class="card-geo">
+          <div class="gi"><div class="gl">SP</div><div class="gv gsp">174°</div></div>
+          <div class="gi"><div class="gl">LP</div><div class="gv glp">354°</div></div>
+          <div class="gi"><div class="gl">Dist</div><div class="gv gd">12700km</div></div>
+        </div>
+        <table><thead><tr><th>CW</th><th>SSB</th><th>FT8</th><th>FT4</th><th>SP%</th><th>LP%</th></tr></thead>
+        <tbody>
+          <tr><td class="se"></td><td class="se"></td><td class="sn">✕</td><td class="se"></td><td><span class="prop-good">88%</span></td><td><span class="prop-ok">55%</span></td></tr>
+          <tr><td class="se"></td><td class="sw">W</td><td class="se"></td><td class="se"></td><td><span class="prop-good">80%</span></td><td><span class="prop-ok">49%</span></td></tr>
+          <tr><td class="se"></td><td class="se"></td><td class="se"></td><td class="se"></td><td><span class="prop-ok">65%</span></td><td><span class="prop-bad">31%</span></td></tr>
+          <tr><td class="se"></td><td class="se"></td><td class="se"></td><td class="se"></td><td><span class="prop-ok">40%</span></td><td><span class="prop-bad">15%</span></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="ls sc">C</div><span>Confirmado QSL/LoTW</span></div>
+      <div class="leg"><div class="ls sw">W</div><span>Trabajado, sin confirmar</span></div>
+      <div class="leg"><div class="ls sn">✕</div><span>Recién trabajado (esta expedición)</span></div>
+      <div class="leg"><div class="ls se"></div><span>No trabajado</span></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ TARJETAS -->
+  <h2><span class="icon">🗂</span> Tarjetas de DXpedición</h2>
+
+  <div class="notice">
+    Los estados de celda reflejan el historial completo con la <strong>entidad DXCC (país)</strong>, no solo con el indicativo de la expedición. Por ejemplo, si el año anterior trabajaste Norfolk Island con otro indicativo en 20m FT8, esa celda aparecerá como <strong>Trabajado</strong> o <strong>Confirmado</strong>. La marca <strong>✕</strong> sirve para indicar que <em>esta expedición concreta</em> ya ha sido trabajada en esa banda/modo.
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h3>Estados de celda</h3>
+      <ul>
+        <li><strong style="color:#cc3030">C — Confirmado:</strong> QSL física o LoTW recibido con la entidad en esa banda/modo</li>
+        <li><strong style="color:#1a7a3a">W — Trabajado:</strong> QSO en el log sin confirmar todavía</li>
+        <li><strong>✕ — Recién trabajado:</strong> marcado manualmente para recordar que esta expedición ya fue trabajada. Clic derecho para deshacer</li>
+        <li><strong style="color:#7a9ab8">Vacío:</strong> banda/modo no trabajado con esa entidad</li>
+      </ul>
+    </div>
+    <div class="info-card">
+      <h3>Propagación SP% / LP%</h3>
+      <p>Cálculo en tiempo real usando el índice Kp (NOAA) y el SFI (hamqsl.com). Se calcula para todas las bandas HF activas. Las bandas 13cm y 23cm muestran — ya que no usan propagación ionosférica.</p>
+      <ul>
+        <li><span class="prop-good">● Verde ≥70%</span> — buena propagación</li>
+        <li><span class="prop-ok">● Naranja 40–69%</span> — propagación aceptable</li>
+        <li><span class="prop-bad">● Rojo &lt;40%</span> — propagación pobre</li>
+      </ul>
+    </div>
+    <div class="info-card">
+      <h3>Azimuts SP / LP</h3>
+      <p>Los valores de <strong>Short Path</strong> y <strong>Long Path</strong> se calculan desde el locator Maidenhead configurado. Son <strong>clicables</strong>: al pulsar se envía automáticamente ese azimut al rotor si está conectado.</p>
+    </div>
+    <div class="info-card">
+      <h3>Reordenar y gestionar</h3>
+      <ul>
+        <li>Arrastra las tarjetas por la cabecera para reordenarlas</li>
+        <li>Botón <strong>↺</strong> recarga los QSOs del log para esa entidad</li>
+        <li>Botón <strong>✕</strong> elimina la tarjeta y todos sus datos</li>
+        <li>Máximo 10 tarjetas simultáneas</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ════════════════════ CTY.DAT -->
+  <h2><span class="icon">🌍</span> Base de datos cty.dat</h2>
+  <p>La base de datos <strong>cty.dat</strong> (Big CTY) es el fichero de referencia universal para el mundo del radioaficionado. Contiene todas las entidades DXCC reconocidas con sus prefijos, coordenadas geográficas, zonas CQ, zonas ITU y continente.</p>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h3>Descarga automática</h3>
+      <p>Al arrancar la aplicación se comprueba automáticamente si existe una versión más reciente en <a href="https://www.country-files.com/bigcty/cty.dat" style="color:var(--acc)">country-files.com</a>. Si hay actualización disponible se descarga sin intervención del usuario. La fecha y versión se muestran en la barra CTY del dashboard.</p>
+    </div>
+    <div class="info-card">
+      <h3>Utilidad en el dashboard</h3>
+      <ul>
+        <li>Identificación del país/entidad DXCC a partir del indicativo</li>
+        <li>Cálculo de azimuts SP y LP desde el locator del usuario</li>
+        <li>Distancia en km a la entidad</li>
+        <li>Zonas CQ e ITU para referencia</li>
+        <li>Continente para clasificación</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="notice">
+    La barra inferior del dashboard muestra el estado del cty.dat: número de entidades cargadas y fecha de la versión. Si aparece en rojo, la base de datos no pudo descargarse y se está usando la última versión disponible en caché.
+  </div>
+
+  <!-- ════════════════════ FUENTES DE LOG -->
+  <h2><span class="icon">📂</span> Fuentes de log soportadas</h2>
+  <p>El tipo de log y la ruta se configuran en la barra de control. Al cambiar el locator o pulsar ↺ se recarga el log y se actualizan todos los estados de las tarjetas.</p>
+
+  <table class="doc-table">
+    <thead><tr><th>Software</th><th>Formato</th><th>Extensión</th><th>Selección</th><th>Notas</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Ham Radio Deluxe</strong></td><td>HRD XML</td><td><code>.xml</code></td><td>Carpeta</td><td>Carga el .xml más reciente de la carpeta automáticamente</td></tr>
+      <tr><td><strong>Swisslog</strong></td><td>MDB</td><td><code>.mdb</code></td><td>Fichero</td><td>Requiere Microsoft Access Database Engine instalado</td></tr>
+      <tr><td><strong>Log4OM</strong></td><td>SQLite</td><td><code>.sqlite / .db</code></td><td>Fichero</td><td>Lectura directa, sin dependencias adicionales</td></tr>
+      <tr><td><strong>Cualquier software</strong></td><td>ADIF</td><td><code>.adi / .adif</code></td><td>Fichero</td><td>Formato estándar universal de radioaficionados</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ════════════════════ FILTROS -->
+  <h2><span class="icon">🎛</span> Filtros de modos y bandas</h2>
+  <p>Todos los filtros se guardan automáticamente en <code>config.json</code> y persisten entre sesiones.</p>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h3>Filtro de modos</h3>
+      <p>Checkboxes <strong>CW / SSB / FT8 / FT4 / RTTY</strong> en la barra de control. Solo se muestran las columnas de los modos seleccionados en todas las tarjetas simultáneamente.</p>
+    </div>
+    <div class="info-card">
+      <h3>Filtro de bandas</h3>
+      <p>Pills seleccionables para las 14 bandas disponibles (13cm, 23cm, 6m, 8m, 10m … 160m). Las bandas <strong>13cm y 23cm están desactivadas por defecto</strong>. Solo se muestran las filas de las bandas activas en cada tarjeta.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════ VALIDACIONES -->
+  <h2><span class="icon">🔒</span> Validaciones</h2>
+  <p>Antes de añadir una DXpedición, la aplicación verifica que estén configurados el locator y el log. Si falta alguno, aparece un modal de aviso:</p>
+
+  <div class="warn-wrap">
+    <div class="warn-modal">
+      <div class="wicon">⚠️</div>
+      <div class="wt">Locator requerido</div>
+      <div class="wm">Por favor introduce un locator Maidenhead válido (ej. JN01nq) antes de añadir una DXpedición.<br><br>El locator es necesario para calcular los azimuts SP/LP y la propagación.</div>
+      <button class="wbtn">OK</button>
+    </div>
+  </div>
+  <p style="text-align:center;font-size:13px;color:#5a7a9a">El mismo modal aparece si el log no está seleccionado al intentar añadir una expedición o recargar el log.</p>
+
+  <!-- ════════════════════ ROTOR -->
+  <h2><span class="icon">🔄</span> Control de rotor ARS-USB (EA4TX)</h2>
+  <p>El widget del rotor está integrado en la topbar del dashboard. Soporta el protocolo Yaesu GS-232A, compatible con EA4TX ARS-USB y controladores Prosistel.</p>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h3>Widget en la topbar</h3>
+      <ul>
+        <li>Brújula animada con aguja en tiempo real (polling 500ms)</li>
+        <li>Azimut actual en grados</li>
+        <li>Estado: Online / Conectando / Offline</li>
+        <li>Botón <strong>Stop</strong> — envía comando S (detiene la rotación)</li>
+        <li>Backoff exponencial al reconectar: 2s → 4s → … → 60s máx.</li>
+        <li>Reconexión automática al encender el ARS</li>
+      </ul>
+    </div>
+    <div class="info-card">
+      <h3>Movimiento automático</h3>
+      <ul>
+        <li>Los valores <strong>SP° y LP°</strong> de cada tarjeta son clicables</li>
+        <li>Al pulsar se envía el azimut al rotor automáticamente</li>
+        <li>El botón parpadea en azul (SP) o naranja (LP) mientras el rotor se mueve</li>
+        <li>La dirección elegida es siempre el arco más corto sin cruzar el tope Norte</li>
+        <li>Rango mecánico: 0°–360°, tope físico en Norte (0°/360°)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ════════════════════ ROTOR TRAY -->
+  <h2><span class="icon">🖱</span> Rotor Tray — bandeja del sistema Windows</h2>
+  <p>El rotor corre como proceso independiente en la bandeja del sistema (<em>system tray</em>). Esto permite que el rotor siga funcionando aunque se cierre el dashboard o se reabra el navegador.</p>
+
+  <div class="tray-row">
+    <div class="tray-icons-box">
+      <h3>Iconos de estado</h3>
+      <div class="tray-icon-row"><div class="dot" style="background:#32c850"></div>Verde — conectado y online</div>
+      <div class="tray-icon-row"><div class="dot" style="background:#f0c040"></div>Amarillo — intentando conectar</div>
+      <div class="tray-icon-row"><div class="dot" style="background:#e03c3c"></div>Rojo — ARS apagado u offline</div>
+      <p style="margin-top:.75rem;font-size:13px;color:#3a5a7a">El punto de estado aparece en la esquina inferior derecha del icono DXP en la bandeja.</p>
+    </div>
+    <div class="tray-menu-box">
+      <div class="tmi" style="font-size:11px;color:var(--t2);font-style:italic">Clic derecho sobre el icono</div>
+      <div class="tmi">Estado del rotor</div>
+      <div class="tmi">Ver log</div>
+      <div class="tms"></div>
+      <div class="tmi">Configuración</div>
+      <div class="tms"></div>
+      <div class="tmi">Iniciar rotor</div>
+      <div class="tmi">Detener rotor</div>
+      <div class="tms"></div>
+      <div class="tmi">Salir</div>
+    </div>
+    <div class="tray-info-box">
+      <h3>Configuración</h3>
+      <p>La configuración del rotor se guarda en:</p>
+      <code style="font-size:11px;display:block;margin:.5rem 0;word-break:break-all">%APPDATA%\DXpeditionTracker\rotor_config.json</code>
+      <p>Desde el menú <strong>Configuración</strong> se puede cambiar el puerto COM en cualquier momento sin reinstalar. El tray se reinicia automáticamente con el nuevo puerto.</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

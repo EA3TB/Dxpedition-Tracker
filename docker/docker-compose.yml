@@ -1,0 +1,31 @@
+services:
+  dxtracker:
+    image: ea3tb/dxpedition-tracker:latest
+    container_name: dxpedition_tracker
+    restart: unless-stopped
+    ports:
+      - "8766:8766"
+    volumes:
+      # Data directory (config, expeditions, cty.dat)
+      - /your/nas/path/Dxpedition_Dashboard:/opt/Dxpedition_Dashboard
+      # NAS disk — read-only access to log files
+      - /your/nas/path:/mnt/nas:ro
+      # Optional: mount a shared folder from a Windows PC (SMB/CIFS)
+      # - pc_logs:/mnt/pc_logs:ro
+    environment:
+      - DATA_DIR=/opt/Dxpedition_Dashboard
+      - PORT=8766
+    networks:
+      - dx_net
+
+networks:
+  dx_net:
+    driver: bridge
+
+# volumes:
+#   pc_logs:
+#     driver: local
+#     driver_opts:
+#       type: cifs
+#       device: "//192.168.X.X/SharedFolderName"
+#       o: "guest,uid=1000,gid=1000,iocharset=utf8,vers=2.0"
