@@ -82,15 +82,6 @@ def load_config() -> dict:
         return {}
 
 
-def _save_config(cfg: dict):
-    try:
-        os.makedirs(CFG_DIR, exist_ok=True)
-        with open(CFG_FILE, "w", encoding="utf-8") as f:
-            json.dump(cfg, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        log.warning(f"No se pudo guardar config: {e}")
-
-
 # ── Iconos ────────────────────────────────────────────────────────────────────
 
 def _make_icon(state: str):
@@ -181,14 +172,9 @@ def _connection_loop(cfg: dict):
     rotor_max     = cfg.get("rotor_max",  360)
     resolution    = cfg.get("resolution", 5)
 
-    try:
-        from rotor import get_available_controllers
-        controllers = get_available_controllers()
-        cls = controllers.get(controller_id, controllers["gs232a"])["class"]
-    except Exception as e:
-        log.error(f"Error cargando controlador '{controller_id}': {e}")
-        _connecting = False
-        return
+    from rotor import get_available_controllers
+    controllers = get_available_controllers()
+    cls = controllers.get(controller_id, controllers["gs232a"])["class"]
 
     backoff = 2
     MAX_BACKOFF = 60
@@ -457,17 +443,15 @@ def _tray_log(icon, item):
 def _tray_start(icon, item):
     global _stop_conn, _conn_thread
     if _conn_thread and _conn_thread.is_alive():
-        # Parar el hilo anterior y esperar
-        _stop_conn = True
-        _conn_thread.join(timeout=3.0)
+        return
     cfg = load_config()
-    cfg["enabled"] = True
-    _save_config(cfg)
+    if not cfg.get("enabled", False):
+        return
     _stop_conn   = False
     _conn_thread = threading.Thread(
         target=_connection_loop, args=(cfg,), daemon=True)
     _conn_thread.start()
-    log.info(f"Iniciando conexión al rotor en {cfg.get('port','?')}...")
+    log.info("Iniciando conexión al rotor...")
 
 
 def _tray_stop(icon, item):
@@ -482,9 +466,6 @@ def _tray_stop(icon, item):
         except Exception:
             pass
         _controller = None
-    cfg = load_config()
-    cfg["enabled"] = False
-    _save_config(cfg)
     _update_tray_icon()
     log.info("Rotor detenido por el usuario")
 
@@ -515,7 +496,7 @@ def _show_config_window():
 
     cfg = load_config()
 
-    win = tk.Tk()
+    win = tk.Toplevel() if tk._default_root else tk.Tk()
     win.title("DXpedition Rotor — Configuracion")
     win.geometry("380x200")
     win.resizable(False, False)
@@ -561,23 +542,18 @@ def _show_config_window():
         if not new_port:
             return
         cfg["port"] = new_port
-        cfg["enabled"] = True
-        _save_config(cfg)
+        save_config(cfg)
+        # Reiniciar conexion con nuevo puerto
+        global _stop_conn, _conn_thread
+        _stop_conn = True
+        import time
+        time.sleep(0.5)
+        _stop_conn = False
+        import threading as _t
+        _conn_thread = _t.Thread(target=_connection_loop, args=(cfg,), daemon=True)
+        _conn_thread.start()
+        log.info(f"Puerto cambiado a {new_port}")
         win.destroy()
-        # Reiniciar conexión con nuevo puerto en thread separado
-        # para no bloquear el hilo tkinter
-        def _restart():
-            global _stop_conn, _conn_thread
-            _stop_conn = True
-            # Esperar a que el hilo anterior termine (máx 3s)
-            if _conn_thread and _conn_thread.is_alive():
-                _conn_thread.join(timeout=3.0)
-            _stop_conn = False
-            _conn_thread = threading.Thread(
-                target=_connection_loop, args=(cfg,), daemon=True)
-            _conn_thread.start()
-            log.info(f"Puerto cambiado a {new_port} — reconectando...")
-        threading.Thread(target=_restart, daemon=True).start()
 
     btn_frame = tk.Frame(win, bg="#0d1b2a")
     btn_frame.pack(pady=16)
@@ -611,7 +587,7 @@ def run_tray(cfg: dict = None, ico_path: str = None):
     if cfg is None:
         cfg = load_config()
 
-    if cfg.get("enabled", True):
+    if cfg.get("enabled", False):
         _stop_conn   = False
         _conn_thread = threading.Thread(
             target=_connection_loop, args=(cfg,), daemon=True)
@@ -663,7 +639,7 @@ def run_tray_embedded(cfg: dict, ico_path: str = None):
             log.error("pystray no disponible — tray desactivado")
             return
 
-        if cfg.get("enabled", True):
+        if cfg.get("enabled", False):
             global _stop_conn, _conn_thread
             _stop_conn   = False
             _conn_thread = threading.Thread(
@@ -721,7 +697,7 @@ def run_tray_in_background(cfg: dict = None, ico_path: str = None):
         _tray_icon = icon
         icon.visible = True
 
-        if cfg.get("enabled", True):
+        if cfg.get("enabled", False):
             _stop_conn   = False
             _conn_thread = threading.Thread(
                 target=_connection_loop, args=(cfg,), daemon=True)
@@ -757,14 +733,4 @@ def run_tray_in_background(cfg: dict = None, ico_path: str = None):
 
 
 if __name__ == "__main__":
-    # ── Instancia única — evitar doble ejecución ──────────────────────────────
-    try:
-        import ctypes
-        _mutex = ctypes.windll.kernel32.CreateMutexW(None, True, "DXpeditionRotorTray_SingleInstance")
-        if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
-            # Ya hay una instancia corriendo — salir silenciosamente
-            sys.exit(0)
-    except Exception:
-        pass  # Si falla el mutex, arrancar igualmente
-
     run_tray()

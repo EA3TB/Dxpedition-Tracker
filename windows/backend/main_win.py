@@ -25,6 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
 from backend import cty_parser, hrd_parser, persistence_win as persistence, log_readers
+from backend import hf_propagation, dx_calendar
 
 # ─── CTY.dat URL ─────────────────────────────────────────────────────────────
 CTY_URL = "https://www.country-files.com/bigcty/cty.dat"
@@ -191,10 +192,13 @@ class ConfigUpdate(BaseModel):
     xml_path:     Optional[str]  = None
     active_modes: Optional[list] = None
     active_bands: Optional[list] = None
+    dx_calendar_enabled: Optional[bool] = None
 
 
 class ExpeditionCreate(BaseModel):
     call: str
+    source: Optional[str] = None
+    end_date: Optional[str] = None
 
 
 class CellUpdate(BaseModel):
@@ -290,6 +294,8 @@ async def update_config(update: ConfigUpdate):
         config["active_modes"] = update.active_modes
     if update.active_bands is not None:
         config["active_bands"] = update.active_bands
+    if update.dx_calendar_enabled is not None:
+        config["dx_calendar_enabled"] = update.dx_calendar_enabled
     if update.log_type is not None:
         config["log_type"] = update.log_type
     if update.log_path is not None:
@@ -486,8 +492,8 @@ async def get_expeditions():
 @app.post("/api/expeditions")
 async def create_expedition(body: ExpeditionCreate):
     expeditions = persistence.load_expeditions()
-    if len(expeditions) >= 10:
-        raise HTTPException(status_code=400, detail="Maximum 10 expeditions reached")
+    if len(expeditions) >= 50:
+        raise HTTPException(status_code=400, detail="Maximum 50 expeditions reached")
 
     config         = persistence.load_config()
     locator        = config.get("locator", "")
@@ -513,6 +519,8 @@ async def create_expedition(body: ExpeditionCreate):
     exp = {
         "id":           persistence.new_expedition_id(),
         "call":         call,
+        "source":       body.source or "manual",
+        "end_date":     body.end_date,
         "country":      cty_entity["name"]      if cty_entity else "",
         "continent":    cty_entity["continent"] if cty_entity else "",
         "cq_zone":      cty_entity["cq"]        if cty_entity else 0,
@@ -535,6 +543,16 @@ async def delete_expedition(expedition_id: str):
     expeditions = [e for e in persistence.load_expeditions() if e["id"] != expedition_id]
     persistence.save_expeditions(expeditions)
     return {"ok": True}
+
+
+@app.get("/api/dxcalendar")
+async def get_dx_calendar():
+    """Devuelve las DXpediciones actualmente activas según NG3K ADXO."""
+    try:
+        active = await dx_calendar.fetch_active_dxpeditions()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error fetching ADXO: {e}")
+    return active
 
 
 @app.post("/api/expeditions/cell")
@@ -659,86 +677,81 @@ async def lookup(callsign: str):
 # ─── API: Propagation ────────────────────────────────────────────────────────
 
 @app.get("/api/propagation")
-async def get_propagation(lat1: float, lon1: float, lat2: float, lon2: float, lp: int = 0):
-    import datetime, math as _math
+async def get_propagation(
+    lat1: float, lon1: float, lat2: float, lon2: float,
+    modes: str = "SSB",   # comma-separated: "SSB,FT8,CW"
+    power: str = "100W",
+):
+    """
+    Returns SP+LP propagation estimate per band.
+    Scores are the max across all requested modes.
+    Uses real-time Kp (NOAA), SFI and SSN (HamQSL).
+    """
+    import xml.etree.ElementTree as _ET
 
-    kp  = 2.0
-    sfi = 120.0
+    # ── Space weather ─────────────────────────────────────────────────────
+    kp, sfi, ssn = 2.0, 120.0, 50.0
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             r = await client.get(
-                "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json")
+                "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json"
+            )
             if r.status_code == 200:
                 data = r.json()
                 if data:
                     kp = float(data[-1].get("kp_index", 2.0))
+
             r2 = await client.get("https://www.hamqsl.com/solarxml.php")
             if r2.status_code == 200:
-                import xml.etree.ElementTree as ET2
-                root2   = ET2.fromstring(r2.text)
-                sfi_el  = root2.find(".//solarflux")
+                root2 = _ET.fromstring(r2.text)
+                sfi_el = root2.find(".//solarflux")
+                ssn_el = root2.find(".//sunspots")
                 if sfi_el is not None and sfi_el.text:
                     sfi = float(sfi_el.text)
+                if ssn_el is not None and ssn_el.text:
+                    ssn = float(ssn_el.text)
     except Exception as e:
         print(f"[WARN] Space weather fetch failed: {e}")
 
-    now_utc  = datetime.datetime.now(datetime.timezone.utc)
-    hour_utc = now_utc.hour + now_utc.minute / 60.0
+    # ── Scores: max across all active modes ───────────────────────────────
+    mode_list = [m.strip() for m in modes.split(",") if m.strip()]
+    if not mode_list:
+        mode_list = ["SSB"]
 
-    R  = 6371.0
-    φ1, φ2 = _math.radians(lat1), _math.radians(lat2)
-    Δφ = _math.radians(lat2 - lat1)
-    Δλ = _math.radians(lon2 - lon1)
-    a  = _math.sin(Δφ/2)**2 + _math.cos(φ1)*_math.cos(φ2)*_math.sin(Δλ/2)**2
-    dist_km = R * 2 * _math.atan2(_math.sqrt(a), _math.sqrt(1-a))
-    if lp:
-        dist_km = 40075 - dist_km
+    # Map frontend mode names → hf_propagation mode keys
+    MODE_MAP = {"CW": "SSB", "FT4": "FT8", "RTTY": "RTTY", "SSB": "SSB", "FT8": "FT8"}
+    hf_modes = list({MODE_MAP.get(m, "SSB") for m in mode_list})
 
-    mid_lat = (lat1 + lat2) / 2
-    if lp:
-        mid_lat = -mid_lat
-    mid_lon  = (lon1 + lon2) / 2
-    if lp:
-        mid_lon = mid_lon + 180 if mid_lon < 0 else mid_lon - 180
-    solar_hour = (hour_utc + mid_lon / 15.0) % 24
-    is_daytime = 7 <= solar_hour <= 19
+    results = [
+        hf_propagation.calc_path_score(
+            lat1=lat1, lon1=lon1, lat2=lat2, lon2=lon2,
+            sfi=sfi, kp=kp, ssn=ssn,
+            mode=m, power=power,
+        )
+        for m in hf_modes
+    ]
 
-    BAND_MHZ = {"6":50,"8":70,"10":28,"12":24,"15":21,"17":18,"20":14,"30":10,"40":7,"60":5.35,"80":3.5,"160":1.85}
-    foF2 = max(2.0, (sfi - 65) / 10.0 + 4.0)
-    m_factor = 2.0 if dist_km < 1000 else 3.0 if dist_km < 3000 else 3.8 if dist_km < 7000 else 4.5
-    muf = foF2 * m_factor
-    angle      = _math.pi * (solar_hour - 14.0) / 12.0
-    muf_factor = 0.95 + 0.35 * _math.cos(angle)
-    muf       *= muf_factor
+    def merge_scores(path: str) -> dict:
+        merged = {}
+        for r in results:
+            for band, score in r[path]["scores"].items():
+                merged[band] = max(merged.get(band, 0), score)
+        return merged
 
-    geo_penalty    = 1.0 if kp <= 2 else 0.85 if kp <= 4 else 0.60 if kp <= 6 else 0.35
-    auroral_crossing = abs(mid_lat) > 60
-    if auroral_crossing:
-        geo_penalty *= 0.7
-
-    scores = {}
-    for band, freq_mhz in BAND_MHZ.items():
-        ratio = freq_mhz / muf if muf > 0 else 1.0
-        if ratio > 1.1:
-            base = max(0, int((1.1 - ratio) * 200))
-        elif ratio > 0.85:
-            base = min(95, 85 + int((1.0 - abs(ratio - 0.95) * 5) * 10))
-        elif ratio > 0.5:
-            base = 40 + int(ratio * 60)
-        else:
-            base = 60 if dist_km < 1500 else max(5, int(ratio * 80))
-        if freq_mhz < 7 and dist_km > 5000:
-            base = int(base * 0.6)
-        night_angle  = _math.pi * (solar_hour - 2.0) / 12.0
-        night_factor = max(0.0, -_math.cos(night_angle))
-        if freq_mhz <= 7 and night_factor > 0:
-            base = min(95, int(base * (1.0 + 0.35 * night_factor)))
-        scores[band] = max(0, min(99, int(base * geo_penalty)))
+    first = results[0]
+    auroral = abs((lat1 + lat2) / 2) > 60
 
     return {
-        "kp": round(kp, 1), "sfi": round(sfi), "muf": round(muf, 1),
-        "is_daytime": is_daytime, "dist_km": round(dist_km),
-        "auroral": auroral_crossing, "scores": scores,
+        "kp":         round(kp, 1),
+        "sfi":        round(sfi),
+        "ssn":        round(ssn),
+        "muf":        first["muf"],
+        "luf":        first["luf"],
+        "is_daytime": first["is_daytime"],
+        "dist_km":    first["dist_km"],
+        "auroral":    auroral,
+        "sp": {"dist_km": first["sp"]["dist_km"], "scores": merge_scores("sp")},
+        "lp": {"dist_km": first["lp"]["dist_km"], "scores": merge_scores("lp")},
     }
 
 

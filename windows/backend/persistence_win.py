@@ -43,7 +43,8 @@ def load_config() -> dict:
         except Exception:
             pass
     return {"locator": "", "xml_path": "", "log_type": "", "log_path": "",
-            "cty_version": "", "cty_date": ""}
+            "cty_version": "", "cty_date": "", "active_modes": [], "active_bands": [],
+            "dx_calendar_enabled": False}
 
 
 def save_config(config: dict):

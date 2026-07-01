@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
 from backend import cty_parser, hrd_parser, persistence, log_readers
+from backend import hf_propagation
 
 # ─── CTY.dat URL ─────────────────────────────────────────────────────────────
 CTY_URL = "https://www.country-files.com/bigcty/cty.dat"
@@ -138,7 +139,6 @@ class ConfigUpdate(BaseModel):
     log_path: Optional[str] = None   # path to the log file
     xml_path: Optional[str] = None   # legacy, kept for backwards compat
     active_modes: Optional[list] = None
-    active_bands: Optional[list] = None
 
 
 class ExpeditionCreate(BaseModel):
@@ -185,8 +185,6 @@ async def update_config(update: ConfigUpdate):
         config["locator"] = update.locator.strip()
     if update.active_modes is not None:
         config["active_modes"] = update.active_modes
-    if update.active_bands is not None:
-        config["active_bands"] = update.active_bands
     if update.log_type is not None:
         config["log_type"] = update.log_type
     if update.log_path is not None:
@@ -793,20 +791,22 @@ def _enrich_expedition(exp: dict, locator_coords, merge_hrd: bool = False):
 # ─── API: Space weather + propagation estimate ───────────────────────────────
 
 @app.get("/api/propagation")
-async def get_propagation(lat1: float, lon1: float, lat2: float, lon2: float, lp: int = 0):
+async def get_propagation(
+    lat1: float, lon1: float, lat2: float, lon2: float,
+    modes: str = "SSB",   # comma-separated: "SSB,FT8,CW"
+    power: str = "100W",
+):
     """
-    Returns propagation estimate per band for a point-to-point path.
-    Uses real-time solar/geomagnetic data from NOAA + hamqsl.
-    lp=0 → short path, lp=1 → long path
+    Returns SP+LP propagation estimate per band.
+    Scores are the max across all requested modes.
+    Uses real-time Kp (NOAA), SFI and SSN (HamQSL).
     """
-    import datetime, math
+    import xml.etree.ElementTree as _ET
 
-    # ── Fetch space weather data ──────────────────────────────────────────
-    kp = 2.0
-    sfi = 120.0
+    # ── Space weather ─────────────────────────────────────────────────────
+    kp, sfi, ssn = 2.0, 120.0, 50.0
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
-            # NOAA planetary K-index (most recent)
             r = await client.get(
                 "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json"
             )
@@ -815,131 +815,55 @@ async def get_propagation(lat1: float, lon1: float, lat2: float, lon2: float, lp
                 if data:
                     kp = float(data[-1].get("kp_index", 2.0))
 
-            # HamQSL solar data (SFI)
             r2 = await client.get("https://www.hamqsl.com/solarxml.php")
             if r2.status_code == 200:
-                import xml.etree.ElementTree as ET2
-                root2 = ET2.fromstring(r2.text)
+                root2 = _ET.fromstring(r2.text)
                 sfi_el = root2.find(".//solarflux")
+                ssn_el = root2.find(".//sunspots")
                 if sfi_el is not None and sfi_el.text:
                     sfi = float(sfi_el.text)
+                if ssn_el is not None and ssn_el.text:
+                    ssn = float(ssn_el.text)
     except Exception as e:
         print(f"[WARN] Space weather fetch failed: {e}")
 
-    # ── Path geometry ─────────────────────────────────────────────────────
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    hour_utc = now_utc.hour + now_utc.minute / 60.0
+    # ── Scores: max across all active modes ───────────────────────────────
+    mode_list = [m.strip() for m in modes.split(",") if m.strip()]
+    if not mode_list:
+        mode_list = ["SSB"]
 
-    # Distance (already computed in cty_parser, but recalculate here)
-    R = 6371.0
-    φ1, φ2 = math.radians(lat1), math.radians(lat2)
-    Δφ = math.radians(lat2 - lat1)
-    Δλ = math.radians(lon2 - lon1)
-    a = math.sin(Δφ/2)**2 + math.cos(φ1)*math.cos(φ2)*math.sin(Δλ/2)**2
-    dist_km = R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    # Map frontend mode names → hf_propagation mode keys
+    MODE_MAP = {"CW": "SSB", "FT4": "FT8", "RTTY": "RTTY", "SSB": "SSB", "FT8": "FT8"}
+    hf_modes = list({MODE_MAP.get(m, "SSB") for m in mode_list})
 
-    if lp:
-        dist_km = 40075 - dist_km  # long path
+    results = [
+        hf_propagation.calc_path_score(
+            lat1=lat1, lon1=lon1, lat2=lat2, lon2=lon2,
+            sfi=sfi, kp=kp, ssn=ssn,
+            mode=m, power=power,
+        )
+        for m in hf_modes
+    ]
 
-    # Mid-point latitude (for day/night check)
-    mid_lat = (lat1 + lat2) / 2
-    if lp:
-        mid_lat = -mid_lat
+    def merge_scores(path: str) -> dict:
+        merged = {}
+        for r in results:
+            for band, score in r[path]["scores"].items():
+                merged[band] = max(merged.get(band, 0), score)
+        return merged
 
-    # Approximate local solar time at midpoint
-    mid_lon = (lon1 + lon2) / 2
-    if lp:
-        mid_lon = mid_lon + 180 if mid_lon < 0 else mid_lon - 180
-    solar_hour = (hour_utc + mid_lon / 15.0) % 24
-    is_daytime = 7 <= solar_hour <= 19
-
-    # ── Band score model ──────────────────────────────────────────────────
-    # Bands in MHz: 10=28, 12=24, 15=21, 17=18, 20=14, 30=10, 40=7, 80=3.5
-    BAND_MHZ = {"6":50,"8":70,"10":28,"12":24,"15":21,"17":18,"20":14,"30":10,"40":7,"60":5.35,"80":3.5,"160":1.85}
-
-    # Approximate MUF based on SFI and path distance
-    # Simple empirical formula: MUF ~ foF2 * M-factor
-    # foF2 ≈ (SFI - 65) / 10 + 4 (very rough)
-    foF2 = max(2.0, (sfi - 65) / 10.0 + 4.0)
-    # M-factor depends on distance (higher for longer paths)
-    if dist_km < 1000:
-        m_factor = 2.0
-    elif dist_km < 3000:
-        m_factor = 3.0
-    elif dist_km < 7000:
-        m_factor = 3.8
-    else:
-        m_factor = 4.5
-    muf = foF2 * m_factor  # MHz
-
-    # Continuous solar hour curve for MUF
-    # Peak ~14h local solar, gradual rise/fall, minimum ~04h
-    import math as _math
-    # Normalize solar_hour to radians: peak at 14h
-    angle = _math.pi * (solar_hour - 14.0) / 12.0
-    # Cosine curve: 1.0 at 14h, minimum at 02h (~-1.0)
-    # Mapped to range [0.60, 1.30]
-    muf_factor = 0.95 + 0.35 * _math.cos(angle)
-    muf *= muf_factor
-
-    # Geomagnetic penalty: Kp > 4 degrades HF significantly
-    if kp <= 2:
-        geo_penalty = 1.0
-    elif kp <= 4:
-        geo_penalty = 0.85
-    elif kp <= 6:
-        geo_penalty = 0.60
-    else:
-        geo_penalty = 0.35
-
-    # Check if path crosses auroral zone (lat > 60°)
-    auroral_crossing = abs(mid_lat) > 60
-    if auroral_crossing:
-        geo_penalty *= 0.7
-
-    scores = {}
-    for band, freq_mhz in BAND_MHZ.items():
-        # Base reliability from freq vs MUF ratio
-        ratio = freq_mhz / muf if muf > 0 else 1.0
-
-        if ratio > 1.1:
-            # Above MUF — poor propagation
-            base = max(0, int((1.1 - ratio) * 200))
-        elif ratio > 0.85:
-            # Optimal window (OWF range)
-            base = 85 + int((1.0 - abs(ratio - 0.95) * 5) * 10)
-            base = min(95, base)
-        elif ratio > 0.5:
-            # Below OWF but usable
-            base = 40 + int(ratio * 60)
-        else:
-            # Very low freq relative to MUF — only NVIS/short paths
-            if dist_km < 1500:
-                base = 60  # NVIS works
-            else:
-                base = max(5, int(ratio * 80))
-
-        # Distance penalty for very low bands on long paths
-        if freq_mhz < 7 and dist_km > 5000:
-            base = int(base * 0.6)
-
-        # Night bonus for low bands — gradual based on solar hour
-        # Maximum bonus at 02h (deep night), zero at 14h (noon)
-        night_angle = _math.pi * (solar_hour - 2.0) / 12.0
-        night_factor = max(0.0, -_math.cos(night_angle))  # 0 at day, 1 at deep night
-        if freq_mhz <= 7 and night_factor > 0:
-            base = min(95, int(base * (1.0 + 0.35 * night_factor)))
-
-        # Apply geomagnetic penalty
-        score = max(0, min(99, int(base * geo_penalty)))
-        scores[band] = score
+    first = results[0]
+    auroral = abs((lat1 + lat2) / 2) > 60
 
     return {
-        "kp": round(kp, 1),
-        "sfi": round(sfi),
-        "muf": round(muf, 1),
-        "is_daytime": is_daytime,
-        "dist_km": round(dist_km),
-        "auroral": auroral_crossing,
-        "scores": scores,
+        "kp":         round(kp, 1),
+        "sfi":        round(sfi),
+        "ssn":        round(ssn),
+        "muf":        first["muf"],
+        "luf":        first["luf"],
+        "is_daytime": first["is_daytime"],
+        "dist_km":    first["dist_km"],
+        "auroral":    auroral,
+        "sp": {"dist_km": first["sp"]["dist_km"], "scores": merge_scores("sp")},
+        "lp": {"dist_km": first["lp"]["dist_km"], "scores": merge_scores("lp")},
     }

@@ -167,17 +167,7 @@ input[type="text"]:focus { border-color: var(--acc); }
 
 #xml-path-input { width: 320px; }
 
-/* CTY status bar */
-#ctybar {
-  background: var(--bg3);
-  border-bottom: 2px solid var(--sep);
-  padding: 3px 16px;
-  font-size: 11px;
-  color: var(--text2);
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
+/* CTY status (ahora integrado en subbar) */
 .cty-badge {
   border-radius: 3px;
   padding: 1px 8px;
@@ -639,10 +629,9 @@ body.rotor-offline .geo-val.lp {
     <input type="text" id="locator-input" value="" placeholder="e.g. JN01nq" style="width:88px"
            onchange="saveConfig()">
   </div>
-  <div style="width:1px;height:20px;background:var(--sep);margin:0 6px;flex-shrink:0"></div>
-  <div class="field-group" style="gap:10px">
-    <label>Modes:</label>
-    <div id="mode-filter" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
+  <div class="field-group" style="gap:6px">
+    <input type="checkbox" id="dxcal-checkbox" onchange="onDxCalendarToggle()">
+    <label for="dxcal-checkbox">DX Calendar</label>
   </div>
   <div class="field-group" style="gap:8px;margin-left:auto">
     <label>Log type:</label>
@@ -659,19 +648,30 @@ body.rotor-offline .geo-val.lp {
     <button class="btn btn-ghost btn-sm" onclick="openBrowser()">📁 Browse</button>
     <button class="btn btn-ghost btn-sm" onclick="reloadXml()" title="Reload">↺</button>
   </div>
+  <div class="field-group" style="gap:10px;flex-basis:100%">
+    <label>Modes:</label>
+    <div id="mode-filter" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
+  </div>
+  <div class="field-group" style="gap:6px">
+    <label>Power:</label>
+    <select id="power-select" onchange="onPowerChange()"
+            style="background:var(--ibg);color:var(--text);border:1px solid var(--sep);border-radius:4px;padding:2px 6px;font-size:11px">
+      <option value="100W">100 W</option>
+      <option value="500W">500 W</option>
+      <option value="1000W">1000 W</option>
+    </select>
+  </div>
+  <div class="field-group" id="ctybar" style="margin-left:auto;gap:8px;font-size:11px;color:var(--text2)">
+    <span>cty.dat:</span>
+    <span id="cty-badge" class="cty-badge warn">Cargando...</span>
+    <span id="cty-info"></span>
+  </div>
 </div>
 
 <!-- BAND FILTER BAR -->
 <div id="bandbar">
   <label>Bands:</label>
   <!-- poblado por buildBandFilter() -->
-</div>
-
-<!-- CTY BAR -->
-<div id="ctybar">
-  <span>cty.dat:</span>
-  <span id="cty-badge" class="cty-badge warn">Cargando...</span>
-  <span id="cty-info"></span>
 </div>
 
 <!-- MAIN BODY -->
@@ -732,14 +732,16 @@ body.rotor-offline .geo-val.lp {
 'use strict';
 
 // ─── State ────────────────────────────────────────────────────────────────
-const ALL_BANDS = ['13cm','23cm','6','8','10','12','15','17','20','30','40','60','80','160'];
+const ALL_BANDS = ['6','10','12','15','17','20','30','40','80','160'];
 const ALL_MODES = ['CW','SSB','FT8','FT4','RTTY'];
 let activeModes = []; // loaded from config, default all off
-let activeBands = []; // loaded from config, default all on except 13cm/23cm
+let activeBands = []; // loaded from config, default all HF bands on
 
 let expeditions = [];   // array of expedition objects from API
-let propData = {};      // {expId: {scores:{band:pct}, kp, sfi, muf, ...}}
+let propData = {};      // {expId: {sp:{scores}, lp:{scores}, kp, sfi, muf, ...}}
 let currentBrowsePath = 'C:\\';
+let currentPower = '100W';
+let dxCalendarEnabled = false;
 
 // Alias de visualización: sólo número para metros, mantiene 'cm' para centimétrico
 function bandLabel(b){ return b.endsWith('cm') ? b : b; }
@@ -821,11 +823,15 @@ async function init(){
     activeModes = cfg.active_modes || [];
     buildModeFilter();
 
-    // Load saved bands (default: all except 13cm/23cm)
+    // Load saved bands (default: todas las HF)
     activeBands = cfg.active_bands && cfg.active_bands.length
       ? cfg.active_bands
-      : ALL_BANDS.filter(b => b !== '13cm' && b !== '23cm');
+      : ALL_BANDS.slice();
     buildBandFilter();
+
+    // Load DX Calendar toggle
+    dxCalendarEnabled = !!cfg.dx_calendar_enabled;
+    document.getElementById('dxcal-checkbox').checked = dxCalendarEnabled;
 
     // Load status
     await refreshStatus();
@@ -836,6 +842,11 @@ async function init(){
     _initDragDrop();
     fetchAllProp();
     rotorStartPoll();
+
+    // Sync DX Calendar cards (runs on every dashboard load if enabled)
+    if(dxCalendarEnabled){
+      syncDxCalendar();
+    }
   } catch(e){
     showToast('Error starting: '+e.message, true);
   }
@@ -896,6 +907,80 @@ async function saveBands(){
   } catch(e){
     showToast('Error saving bands: '+e.message, true);
   }
+}
+
+async function onDxCalendarToggle(){
+  dxCalendarEnabled = document.getElementById('dxcal-checkbox').checked;
+  try {
+    await api('POST', '/api/config', { dx_calendar_enabled: dxCalendarEnabled });
+  } catch(e){
+    showToast('Error saving DX Calendar: '+e.message, true);
+  }
+  if(dxCalendarEnabled){
+    syncDxCalendar();
+  } else {
+    purgeAutoDxCards();
+  }
+}
+
+async function syncDxCalendar(){
+  let active;
+  try {
+    active = await api('GET', '/api/dxcalendar');
+  } catch(e){
+    showToast('Error fetching DX Calendar: '+e.message, true);
+    return;
+  }
+
+  const activeCalls = new Set(active.map(a => a.call.toUpperCase()));
+
+  // Remove auto cards whose DXpedition is no longer active
+  const autoExps = expeditions.filter(e => e.source === 'auto');
+  for(const exp of autoExps){
+    if(!activeCalls.has(exp.call.toUpperCase())){
+      try { await api('DELETE', `/api/expeditions/${exp.id}`); } catch(e){}
+    }
+  }
+
+  // Add cards for active DXpeditions not already present
+  const remainingAutoCalls = new Set(
+    expeditions.filter(e => e.source === 'auto' && activeCalls.has(e.call.toUpperCase()))
+               .map(e => e.call.toUpperCase())
+  );
+  for(const entry of active){
+    if(remainingAutoCalls.has(entry.call.toUpperCase())) continue;
+    try {
+      await api('POST', '/api/expeditions', { call: entry.call, source: 'auto', end_date: entry.end_date });
+    } catch(e){}
+  }
+
+  expeditions = await api('GET', '/api/expeditions');
+
+  // Reorder: sort auto cards among themselves by end_date asc (soonest first),
+  // keeping manual cards in their existing slots untouched.
+  const autoSlots = [];
+  expeditions.forEach((e, i) => { if(e.source === 'auto') autoSlots.push(i); });
+  if(autoSlots.length > 1){
+    const autoSorted = expeditions
+      .filter(e => e.source === 'auto')
+      .sort((a, b) => (a.end_date || '').localeCompare(b.end_date || ''));
+    autoSlots.forEach((idx, i) => { expeditions[idx] = autoSorted[i]; });
+    try {
+      await api('POST', '/api/expeditions/reorder', { order: expeditions.map(e => e.id) });
+    } catch(e){}
+  }
+
+  renderGrid();
+  fetchAllProp();
+}
+
+async function purgeAutoDxCards(){
+  const autoExps = expeditions.filter(e => e.source === 'auto');
+  for(const exp of autoExps){
+    try { await api('DELETE', `/api/expeditions/${exp.id}`); } catch(e){}
+  }
+  expeditions = await api('GET', '/api/expeditions');
+  renderGrid();
 }
 
 async function saveXmlPath(path){
@@ -1033,6 +1118,12 @@ function cellClass(st){
   return { confirmed:'s-confirmed', worked:'s-worked', new:'s-new', disabled:'s-disabled' }[st] || 's-empty';
 }
 
+function formatDMY(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function buildCard(exp){
   const country = exp.country || '—';
   const zones   = exp.continent
@@ -1055,12 +1146,11 @@ function buildCard(exp){
         oncontextmenu="onCellRightClick(event,'${exp.id}','${key}')"
       >${cellContent(bandLabel(b), st)}</td>`;
     }
-    // SP% and LP% propagation columns — sin cálculo para bandas centimétricas
-    const isCm = b.endsWith('cm');
+    // SP% and LP% propagation columns
     const p = propData[exp.id];
-    let spPct = isCm ? '—' : '...', lpPct = isCm ? '—' : '...';
+    let spPct = '...', lpPct = '...';
     let spCls = '', lpCls = '';
-    if(!isCm && p && !p.error){
+    if(p && !p.error){
       if(p.sp && p.sp.scores){
         const v = p.sp.scores[b] ?? 0;
         spPct = v + '%';
@@ -1089,6 +1179,7 @@ function buildCard(exp){
   </div>
   <div class="card-country">
     <span class="cname">${esc(country)}</span>
+    ${exp.source === 'auto' && exp.end_date ? `<span class="cname" style="color:var(--text2);font-weight:400;font-size:11px">hasta ${formatDMY(exp.end_date)}</span>` : ''}
     <span class="czones">${esc(zones)}</span>
   </div>
   <div class="card-geo">
@@ -1292,13 +1383,11 @@ async function fetchPropForExp(exp){
   if(exp.dx_lat === 0 && exp.dx_lon === 0) return; // coords no resueltas
   const qth = await getQthCoords();
   if(!qth) return;
+  const modesParam = activeModes.join(',') || 'SSB';
+  const url = `/api/propagation?lat1=${qth.lat.toFixed(4)}&lon1=${qth.lon.toFixed(4)}&lat2=${exp.dx_lat}&lon2=${exp.dx_lon}&modes=${encodeURIComponent(modesParam)}&power=${currentPower}`;
   try {
-    const base = `/api/propagation?lat1=${qth.lat.toFixed(4)}&lon1=${qth.lon.toFixed(4)}&lat2=${exp.dx_lat}&lon2=${exp.dx_lon}`;
-    const [spData, lpData] = await Promise.all([
-      api('GET', base+'&lp=0'),
-      api('GET', base+'&lp=1'),
-    ]);
-    propData[exp.id] = { sp: spData, lp: lpData };
+    const data = await api('GET', url);
+    propData[exp.id] = data;
   } catch(e){
     propData[exp.id] = { error: true };
   }
@@ -1310,6 +1399,12 @@ async function fetchAllProp(){
   for(const exp of expeditions){
     fetchPropForExp(exp); // fire and forget — each updates grid when ready
   }
+}
+
+function onPowerChange(){
+  currentPower = document.getElementById('power-select').value;
+  propData = {};
+  fetchAllProp();
 }
 
 // ─── Mode filter ─────────────────────────────────────────────────────────
