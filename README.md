@@ -17,8 +17,35 @@
 - **Propagation estimate** — real-time per-band score (0–99%) for SP and LP, based on live Kp (NOAA) and SFI (HamQSL), MUF model, solar hour at path midpoint, geomagnetic penalty and auroral zone detection
 - **Drag & drop** — reorder expedition cards (SortableJS)
 - **Two deployments** — Docker/NAS or standalone Windows .exe
+- ## New: DX Calendar
+- New backend module `dx_calendar.py` (shared, Docker + Windows): scrapes the NG3K "Announced DX Operations" table (https://www.ng3k.com/Misc/adxo.html), extracts Start/End dates and the real operating callsign (parsed from the dxwatch "spots" link parameter, not just the entity prefix), and returns only DXpeditions currently active (today's date within range).
+- New `GET /api/dxcalendar` endpoint.
+- New "DX Calendar" checkbox in the toolbar. When enabled:
+  - On every dashboard load, syncs active DXpeditions: creates cards for new ones, removes cards for expired/no-longer-active ones.
+  - Auto-generated cards are tagged `source: "auto"` and never touch manually-created cards.
+  - Auto cards are sorted among themselves by end date (soonest first), manual cards keep their position.
+  - Card header shows "hasta DD/MM/YYYY" (end date) next to the country name for auto cards.
+  - Disabling the checkbox removes all auto-generated cards immediately; re-enabling regenerates them.
+- Expedition creation now accepts `source` and `end_date` fields; persisted per card.
+- Card limit raised from 10 to 50.
 
----
+## Propagation model
+- Unified SP/LP propagation into a single `hf_propagation.py` module call (previously two separate calls with an inline/duplicated calculation).
+- Added Modes + Power selector in the toolbar (100W/500W/1000W); propagation score is the max across all active modes.
+- Fixed a LUF bug: `luf_adj` was calculated but never applied to filter out unusable low bands.
+- Added 6m band (50.150 MHz) to the propagation model.
+- **Windows only**: migrated from the old two-call (`lp=0`/`lp=1`) inline propagation model to the new unified `hf_propagation` model, bringing it to parity with Docker.
+
+## Band & mode filters
+- New "Bands" selector (checkboxes), mirroring the existing "Modes" selector. Persisted in config (`active_bands`).
+- Docker: bands set to `6, 10, 12, 15, 17, 20, 30, 40, 80, 160` (ascending order).
+- Windows: reduced its band list from a broader VHF/UHF set (`13cm, 23cm, 6, 8, 10, 12, 15, 17, 20, 30, 40, 60, 80, 160`) down to the same HF-only set as Docker, for consistency. Default is now "all HF bands on" instead of empty.
+
+## UI layout
+- Toolbar reorganized to fit more expedition cards on screen:
+  - Row 1: Locator + DX Calendar checkbox (left), Log type/path/Browse (right).
+  - Row 2: Modes + Power (left), cty.dat status (right, under the Log row).
+  - Row 3: Bands.
 
 ## Log Sources
 
