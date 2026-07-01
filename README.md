@@ -24,7 +24,7 @@
   - On every dashboard load, syncs active DXpeditions: creates cards for new ones, removes cards for expired/no-longer-active ones.
   - Auto-generated cards are tagged `source: "auto"` and never touch manually-created cards.
   - Auto cards are sorted among themselves by end date (soonest first), manual cards keep their position.
-  - Card header shows "hasta DD/MM/YYYY" (end date) next to the country name for auto cards.
+  - Card header shows "till DD/MM/YYYY" (end date) next to the country name for auto cards.
   - Disabling the checkbox removes all auto-generated cards immediately; re-enabling regenerates them.
 - Expedition creation now accepts `source` and `end_date` fields; persisted per card.
 - Card limit raised from 10 to 50.
