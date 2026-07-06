@@ -29,6 +29,10 @@
 - Expedition creation now accepts `source` and `end_date` fields; persisted per card.
 - Card limit raised from 10 to 50.
 
+## DX Spots
+
+Click the **DX** button on any expedition card to view the last 15 spots for that callsign, live from dxwatch.com. Columns: UTC, MHz, DE, Comments. Floating window, closes on click-outside or ✕. Fetched once on open, no auto-refresh. Docker + Windows.
+
 ## Propagation model
 - Unified SP/LP propagation into a single `hf_propagation.py` module call (previously two separate calls with an inline/duplicated calculation).
 - Added Modes + Power selector in the toolbar (100W/500W/1000W); propagation score is the max across all active modes.
