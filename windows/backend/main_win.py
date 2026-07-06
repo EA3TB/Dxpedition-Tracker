@@ -25,7 +25,7 @@ from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
 from backend import cty_parser, hrd_parser, persistence_win as persistence, log_readers
-from backend import hf_propagation, dx_calendar
+from backend import hf_propagation, dx_calendar, dx_spots
 
 # ─── CTY.dat URL ─────────────────────────────────────────────────────────────
 CTY_URL = "https://www.country-files.com/bigcty/cty.dat"
@@ -553,6 +553,17 @@ async def get_dx_calendar():
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Error fetching ADXO: {e}")
     return active
+
+
+@app.get("/api/dxspots")
+async def get_dx_spots(call: str):
+    """Devuelve los últimos 15 spots para un indicativo (dxwatch.com)."""
+    try:
+        spots = await dx_spots.fetch_spots(call, rows=15)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error fetching spots: {e}")
+    return spots
+
 
 
 @app.post("/api/expeditions/cell")

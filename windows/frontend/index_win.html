@@ -208,6 +208,7 @@ input[type="text"]:focus { border-color: var(--acc); }
 .card-call-input {
   text-align: center;
   flex: 1;
+  min-width: 0;
   background: rgba(255,255,255,.14);
   border: 1px solid rgba(255,255,255,.28);
   color: #fff;
@@ -237,6 +238,50 @@ input[type="text"]:focus { border-color: var(--acc); }
   flex-shrink: 0;
 }
 .card-reload:hover { background: rgba(255,255,255,.22); }
+
+.card-dxspots {
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  color: rgba(255,255,255,.8);
+  border-radius: 5px;
+  width: 26px; height: 26px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.card-dxspots:hover { background: rgba(255,255,255,.22); }
+
+#dxspots-popup {
+  position: fixed;
+  z-index: 500;
+  background: var(--ibg);
+  border: 1px solid var(--acc);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  width: 340px;
+  max-height: 360px;
+  overflow-y: auto;
+  display: none;
+  font-size: 11px;
+}
+#dxspots-popup .dxspots-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sep);
+  position: sticky; top: 0;
+  background: var(--ibg);
+}
+#dxspots-popup .dxspots-hdr span.title { color: var(--text); font-weight: 600; }
+#dxspots-popup .dxspots-hdr span.close { color: var(--text2); cursor: pointer; font-size: 14px; padding: 0 4px; }
+#dxspots-popup table { width: 100%; border-collapse: collapse; }
+#dxspots-popup th { text-align: left; color: var(--text2); padding: 4px 8px; font-weight: 500; }
+#dxspots-popup td { padding: 3px 8px; border-top: 1px solid var(--sep); color: var(--text); white-space: nowrap; }
+#dxspots-popup td.obs { white-space: normal; color: var(--text2); }
+#dxspots-popup .dxspots-msg { padding: 12px; color: var(--text2); text-align: center; }
+
 
 .card-close {
   background: rgba(0,0,0,.25);
@@ -577,6 +622,8 @@ body.rotor-offline .geo-val.lp {
 </head>
 <body>
 
+<div id="dxspots-popup"></div>
+
 <!-- TOPBAR -->
 <div id="topbar">
   <span class="title">📡 DXpedition Tracker</span>
@@ -663,7 +710,7 @@ body.rotor-offline .geo-val.lp {
   </div>
   <div class="field-group" id="ctybar" style="margin-left:auto;gap:8px;font-size:11px;color:var(--text2)">
     <span>cty.dat:</span>
-    <span id="cty-badge" class="cty-badge warn">Cargando...</span>
+    <span id="cty-badge" class="cty-badge warn">Loading...</span>
     <span id="cty-info"></span>
   </div>
 </div>
@@ -983,6 +1030,70 @@ async function purgeAutoDxCards(){
   renderGrid();
 }
 
+async function showDxSpots(evt, expId, call){
+  const popup = document.getElementById('dxspots-popup');
+  const btn = evt.currentTarget;
+
+  if(popup.style.display === 'block' && popup.dataset.expId === expId){
+    hideDxSpots();
+    return;
+  }
+
+  const rect = btn.getBoundingClientRect();
+  popup.style.top  = (rect.bottom + 4) + 'px';
+  popup.style.left = Math.max(8, rect.right - 340) + 'px';
+  popup.dataset.expId = expId;
+  popup.innerHTML = `
+    <div class="dxspots-hdr">
+      <span class="title">DX Spots — ${esc(call)}</span>
+      <span class="close" onclick="hideDxSpots()">✕</span>
+    </div>
+    <div class="dxspots-msg">Loading...</div>`;
+  popup.style.display = 'block';
+
+  try {
+    const spots = await api('GET', `/api/dxspots?call=${encodeURIComponent(call)}`);
+    if(popup.dataset.expId !== expId) return;
+    if(!spots.length){
+      popup.querySelector('.dxspots-msg').textContent = 'No recent spots';
+      return;
+    }
+    const rows = spots.map(s => `
+      <tr>
+        <td>${esc(s.time)}</td>
+        <td>${s.freq}</td>
+        <td>${esc(s.de)}</td>
+        <td class="obs">${esc(s.obs)}</td>
+      </tr>`).join('');
+    popup.innerHTML = `
+      <div class="dxspots-hdr">
+        <span class="title">DX Spots — ${esc(call)}</span>
+        <span class="close" onclick="hideDxSpots()">✕</span>
+      </div>
+      <table>
+        <tr><th>UTC</th><th>MHz</th><th>DE</th><th>Comments</th></tr>
+        ${rows}
+      </table>`;
+  } catch(e){
+    if(popup.dataset.expId !== expId) return;
+    popup.querySelector('.dxspots-msg').textContent = 'Error fetching spots';
+  }
+}
+
+function hideDxSpots(){
+  const popup = document.getElementById('dxspots-popup');
+  popup.style.display = 'none';
+  delete popup.dataset.expId;
+}
+
+document.addEventListener('click', function(evt){
+  const popup = document.getElementById('dxspots-popup');
+  if(popup.style.display !== 'block') return;
+  if(popup.contains(evt.target)) return;
+  if(evt.target.closest && evt.target.closest('.card-dxspots')) return;
+  hideDxSpots();
+});
+
 async function saveXmlPath(path){
   const logType = document.getElementById('log-type-select')?.value || 'hrd_xml';
   try {
@@ -1043,7 +1154,7 @@ async function newExpedition(){
     expeditions.push(exp);
     renderGrid();
     fetchPropForExp(exp);
-    showToast(`${exp.call} añadida`);
+    showToast(`${exp.call} added`);
   } catch(e){
     showToast('Error: '+e.message, true);
   }
@@ -1175,11 +1286,12 @@ function buildCard(exp){
       onblur="updateCallsign('${exp.id}', this.value)"
       onkeydown="if(event.key==='Enter')this.blur()">
     <button class="card-reload" onclick="reloadExpedition('${exp.id}')" title="Reload from XML">↺</button>
+    <button class="card-dxspots" onclick="showDxSpots(event, '${exp.id}', '${esc(exp.call)}')" title="DX Spots">DX</button>
     <button class="card-close"  onclick="deleteExpedition('${exp.id}')" title="Delete">✕</button>
   </div>
   <div class="card-country">
     <span class="cname">${esc(country)}</span>
-    ${exp.source === 'auto' && exp.end_date ? `<span class="cname" style="color:var(--text2);font-weight:400;font-size:11px">hasta ${formatDMY(exp.end_date)}</span>` : ''}
+    ${exp.source === 'auto' && exp.end_date ? `<span class="cname" style="color:var(--text2);font-weight:400;font-size:11px">till ${formatDMY(exp.end_date)}</span>` : ''}
     <span class="czones">${esc(zones)}</span>
   </div>
   <div class="card-geo">
@@ -1624,7 +1736,7 @@ async function rotorMoveTo(az, el, label){
     const d = await r.json();
     showToast(`Rotor → ${az}° (${label}) · ${d.direction} ${Math.round(d.degrees||0)}°`);
   } catch(e){
-    showToast('Error enviando comando al rotor', true);
+    showToast('Error sending rotor command', true);
     el.classList.remove('rotor-sending');
     rotorSendEl = null;
   }
@@ -1637,9 +1749,9 @@ async function rotorStop(){
       showToast('Rotor detenido');
       if(rotorSendEl){ rotorSendEl.classList.remove('rotor-sending'); rotorSendEl = null; }
     } else {
-      showToast('Error deteniendo rotor (' + r.status + ')', true);
+      showToast('Error stopping rotor (' + r.status + ')', true);
     }
-  } catch(e){ showToast('Error deteniendo rotor: ' + e.message, true); }
+  } catch(e){ showToast('Error stopping rotor: ' + e.message, true); }
 }
 
 // ─── Heartbeat — ping al servidor cada 5s ────────────────────────────────

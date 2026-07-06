@@ -167,17 +167,7 @@ input[type="text"]:focus { border-color: var(--acc); }
 
 #xml-path-input { width: 320px; }
 
-/* CTY status bar */
-#ctybar {
-  background: var(--bg3);
-  border-bottom: 2px solid var(--sep);
-  padding: 3px 16px;
-  font-size: 11px;
-  color: var(--text2);
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
+/* CTY status (ahora integrado en subbar) */
 .cty-badge {
   border-radius: 3px;
   padding: 1px 8px;
@@ -218,6 +208,7 @@ input[type="text"]:focus { border-color: var(--acc); }
 .card-call-input {
   text-align: center;
   flex: 1;
+  min-width: 0;
   background: rgba(255,255,255,.14);
   border: 1px solid rgba(255,255,255,.28);
   color: #fff;
@@ -247,6 +238,50 @@ input[type="text"]:focus { border-color: var(--acc); }
   flex-shrink: 0;
 }
 .card-reload:hover { background: rgba(255,255,255,.22); }
+
+.card-dxspots {
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  color: rgba(255,255,255,.8);
+  border-radius: 5px;
+  width: 26px; height: 26px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+.card-dxspots:hover { background: rgba(255,255,255,.22); }
+
+#dxspots-popup {
+  position: fixed;
+  z-index: 500;
+  background: var(--ibg);
+  border: 1px solid var(--acc);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  width: 340px;
+  max-height: 360px;
+  overflow-y: auto;
+  display: none;
+  font-size: 11px;
+}
+#dxspots-popup .dxspots-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sep);
+  position: sticky; top: 0;
+  background: var(--ibg);
+}
+#dxspots-popup .dxspots-hdr span.title { color: var(--text); font-weight: 600; }
+#dxspots-popup .dxspots-hdr span.close { color: var(--text2); cursor: pointer; font-size: 14px; padding: 0 4px; }
+#dxspots-popup table { width: 100%; border-collapse: collapse; }
+#dxspots-popup th { text-align: left; color: var(--text2); padding: 4px 8px; font-weight: 500; }
+#dxspots-popup td { padding: 3px 8px; border-top: 1px solid var(--sep); color: var(--text); white-space: nowrap; }
+#dxspots-popup td.obs { white-space: normal; color: var(--text2); }
+#dxspots-popup .dxspots-msg { padding: 12px; color: var(--text2); text-align: center; }
+
 
 .card-close {
   background: rgba(0,0,0,.25);
@@ -518,6 +553,8 @@ body.rotor-offline .geo-val.lp { cursor: default; opacity: .5; }
 </head>
 <body>
 
+<div id="dxspots-popup"></div>
+
 <!-- TOPBAR -->
 <div id="topbar">
   <span class="title">📡 DXpedition Tracker</span>
@@ -568,18 +605,9 @@ body.rotor-offline .geo-val.lp { cursor: default; opacity: .5; }
     <input type="text" id="locator-input" value="" placeholder="e.g. JN01nq" style="width:88px"
            onchange="saveConfig()">
   </div>
-  <div class="field-group" style="gap:10px">
-    <label>Modes:</label>
-    <div id="mode-filter" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
-  </div>
   <div class="field-group" style="gap:6px">
-    <label>Power:</label>
-    <select id="power-select" onchange="onPowerChange()"
-            style="background:var(--ibg);color:var(--text);border:1px solid var(--sep);border-radius:4px;padding:2px 6px;font-size:11px">
-      <option value="100W">100 W</option>
-      <option value="500W">500 W</option>
-      <option value="1000W">1000 W</option>
-    </select>
+    <input type="checkbox" id="dxcal-checkbox" onchange="onDxCalendarToggle()">
+    <label for="dxcal-checkbox">DX Calendar</label>
   </div>
   <div class="field-group" style="margin-left:auto;gap:8px">
     <label>Log type:</label>
@@ -596,13 +624,28 @@ body.rotor-offline .geo-val.lp { cursor: default; opacity: .5; }
     <button class="btn btn-ghost btn-sm" onclick="openBrowser()">📁 Browse</button>
     <button class="btn btn-ghost btn-sm" onclick="reloadXml()" title="Reload">↺</button>
   </div>
-</div>
-
-<!-- CTY BAR -->
-<div id="ctybar">
-  <span>cty.dat:</span>
-  <span id="cty-badge" class="cty-badge warn">Cargando...</span>
-  <span id="cty-info"></span>
+  <div class="field-group" style="gap:10px;flex-basis:100%">
+    <label>Modes:</label>
+    <div id="mode-filter" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
+  </div>
+  <div class="field-group" style="gap:6px">
+    <label>Power:</label>
+    <select id="power-select" onchange="onPowerChange()"
+            style="background:var(--ibg);color:var(--text);border:1px solid var(--sep);border-radius:4px;padding:2px 6px;font-size:11px">
+      <option value="100W">100 W</option>
+      <option value="500W">500 W</option>
+      <option value="1000W">1000 W</option>
+    </select>
+  </div>
+  <div class="field-group" id="ctybar" style="margin-left:auto;gap:8px;font-size:11px;color:var(--text2)">
+    <span>cty.dat:</span>
+    <span id="cty-badge" class="cty-badge warn">Loading...</span>
+    <span id="cty-info"></span>
+  </div>
+  <div class="field-group" style="gap:10px;flex-basis:100%">
+    <label>Bands:</label>
+    <div id="band-filter" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
+  </div>
 </div>
 
 <!-- MAIN BODY -->
@@ -651,7 +694,10 @@ body.rotor-offline .geo-val.lp { cursor: default; opacity: .5; }
 'use strict';
 
 // ─── State ────────────────────────────────────────────────────────────────
-const BANDS = ['10','12','15','17','20','30','40','80'];
+const ALL_BANDS = ['6','10','12','15','17','20','30','40','80','160'];
+let activeBands = []; // loaded from config, default all off
+let BANDS = [];
+let dxCalendarEnabled = false;
 const ALL_MODES = ['CW','SSB','FT8','FT4','RTTY'];
 let activeModes = []; // loaded from config, default all off
 
@@ -726,6 +772,15 @@ async function init(){
     activeModes = cfg.active_modes || [];
     buildModeFilter();
 
+    // Load saved bands
+    activeBands = cfg.active_bands || [];
+    BANDS = ALL_BANDS.filter(x => activeBands.includes(x));
+    buildBandFilter();
+
+    // Load DX Calendar toggle
+    dxCalendarEnabled = !!cfg.dx_calendar_enabled;
+    document.getElementById('dxcal-checkbox').checked = dxCalendarEnabled;
+
     // Load status
     await refreshStatus();
 
@@ -735,6 +790,11 @@ async function init(){
     _initDragDrop();
     fetchAllProp();
     rotorStartPoll();
+
+    // Sync DX Calendar cards (runs on every dashboard load if enabled)
+    if(dxCalendarEnabled){
+      syncDxCalendar();
+    }
   } catch(e){
     showToast('Error starting: '+e.message, true);
   }
@@ -787,6 +847,154 @@ async function saveModes(){
   }
 }
 
+async function saveBands(){
+  try {
+    await api('POST', '/api/config', { active_bands: activeBands });
+  } catch(e){
+    showToast('Error saving bands: '+e.message, true);
+  }
+}
+
+async function onDxCalendarToggle(){
+  dxCalendarEnabled = document.getElementById('dxcal-checkbox').checked;
+  try {
+    await api('POST', '/api/config', { dx_calendar_enabled: dxCalendarEnabled });
+  } catch(e){
+    showToast('Error saving DX Calendar: '+e.message, true);
+  }
+  if(dxCalendarEnabled){
+    syncDxCalendar();
+  } else {
+    purgeAutoDxCards();
+  }
+}
+
+async function syncDxCalendar(){
+  let active;
+  try {
+    active = await api('GET', '/api/dxcalendar');
+  } catch(e){
+    showToast('Error fetching DX Calendar: '+e.message, true);
+    return;
+  }
+
+  const activeCalls = new Set(active.map(a => a.call.toUpperCase()));
+
+  // Remove auto cards whose DXpedition is no longer active
+  const autoExps = expeditions.filter(e => e.source === 'auto');
+  for(const exp of autoExps){
+    if(!activeCalls.has(exp.call.toUpperCase())){
+      try { await api('DELETE', `/api/expeditions/${exp.id}`); } catch(e){}
+    }
+  }
+
+  // Add cards for active DXpeditions not already present
+  const remainingAutoCalls = new Set(
+    expeditions.filter(e => e.source === 'auto' && activeCalls.has(e.call.toUpperCase()))
+               .map(e => e.call.toUpperCase())
+  );
+  for(const entry of active){
+    if(remainingAutoCalls.has(entry.call.toUpperCase())) continue;
+    try {
+      await api('POST', '/api/expeditions', { call: entry.call, source: 'auto', end_date: entry.end_date });
+    } catch(e){}
+  }
+
+  expeditions = await api('GET', '/api/expeditions');
+
+  // Reorder: sort auto cards among themselves by end_date asc (soonest first),
+  // keeping manual cards in their existing slots untouched.
+  const autoSlots = [];
+  expeditions.forEach((e, i) => { if(e.source === 'auto') autoSlots.push(i); });
+  if(autoSlots.length > 1){
+    const autoSorted = expeditions
+      .filter(e => e.source === 'auto')
+      .sort((a, b) => (a.end_date || '').localeCompare(b.end_date || ''));
+    autoSlots.forEach((idx, i) => { expeditions[idx] = autoSorted[i]; });
+    try {
+      await api('POST', '/api/expeditions/reorder', { order: expeditions.map(e => e.id) });
+    } catch(e){}
+  }
+
+  renderGrid();
+  fetchAllProp();
+}
+
+async function purgeAutoDxCards(){
+  const autoExps = expeditions.filter(e => e.source === 'auto');
+  for(const exp of autoExps){
+    try { await api('DELETE', `/api/expeditions/${exp.id}`); } catch(e){}
+  }
+  expeditions = await api('GET', '/api/expeditions');
+  renderGrid();
+}
+
+async function showDxSpots(evt, expId, call){
+  const popup = document.getElementById('dxspots-popup');
+  const btn = evt.currentTarget;
+
+  // Toggle: si ya está abierta para esta tarjeta, cerrar
+  if(popup.style.display === 'block' && popup.dataset.expId === expId){
+    hideDxSpots();
+    return;
+  }
+
+  const rect = btn.getBoundingClientRect();
+  popup.style.top  = (rect.bottom + 4) + 'px';
+  popup.style.left = Math.max(8, rect.right - 340) + 'px';
+  popup.dataset.expId = expId;
+  popup.innerHTML = `
+    <div class="dxspots-hdr">
+      <span class="title">DX Spots — ${esc(call)}</span>
+      <span class="close" onclick="hideDxSpots()">✕</span>
+    </div>
+    <div class="dxspots-msg">Loading...</div>`;
+  popup.style.display = 'block';
+
+  try {
+    const spots = await api('GET', `/api/dxspots?call=${encodeURIComponent(call)}`);
+    if(popup.dataset.expId !== expId) return; // se cerró/cambió mientras cargaba
+    if(!spots.length){
+      popup.querySelector('.dxspots-msg').textContent = 'No recent spots';
+      return;
+    }
+    const rows = spots.map(s => `
+      <tr>
+        <td>${esc(s.time)}</td>
+        <td>${s.freq}</td>
+        <td>${esc(s.de)}</td>
+        <td class="obs">${esc(s.obs)}</td>
+      </tr>`).join('');
+    popup.innerHTML = `
+      <div class="dxspots-hdr">
+        <span class="title">DX Spots — ${esc(call)}</span>
+        <span class="close" onclick="hideDxSpots()">✕</span>
+      </div>
+      <table>
+        <tr><th>UTC</th><th>MHz</th><th>DE</th><th>Comments</th></tr>
+        ${rows}
+      </table>`;
+  } catch(e){
+    if(popup.dataset.expId !== expId) return;
+    popup.querySelector('.dxspots-msg').textContent = 'Error fetching spots';
+  }
+}
+
+function hideDxSpots(){
+  const popup = document.getElementById('dxspots-popup');
+  popup.style.display = 'none';
+  delete popup.dataset.expId;
+}
+
+document.addEventListener('click', function(evt){
+  const popup = document.getElementById('dxspots-popup');
+  if(popup.style.display !== 'block') return;
+  if(popup.contains(evt.target)) return;
+  if(evt.target.closest && evt.target.closest('.card-dxspots')) return;
+  hideDxSpots();
+});
+
+
 async function saveXmlPath(path){
   const logType = document.getElementById('log-type-select')?.value || 'hrd_xml';
   try {
@@ -827,7 +1035,7 @@ async function newExpedition(){
     const exp = await api('POST', '/api/expeditions', { call: call.trim() });
     expeditions.push(exp);
     renderGrid();
-    showToast(`${exp.call} añadida`);
+    showToast(`${exp.call} added`);
   } catch(e){
     showToast('Error: '+e.message, true);
   }
@@ -902,6 +1110,12 @@ function cellClass(st){
   return { confirmed:'s-confirmed', worked:'s-worked', new:'s-new', disabled:'s-disabled' }[st] || 's-empty';
 }
 
+function formatDMY(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function buildCard(exp){
   const country = exp.country || '—';
   const zones   = exp.continent
@@ -953,10 +1167,12 @@ function buildCard(exp){
       onblur="updateCallsign('${exp.id}', this.value)"
       onkeydown="if(event.key==='Enter')this.blur()">
     <button class="card-reload" onclick="reloadExpedition('${exp.id}')" title="Reload from XML">↺</button>
+    <button class="card-dxspots" onclick="showDxSpots(event, '${exp.id}', '${esc(exp.call)}')" title="DX Spots">DX</button>
     <button class="card-close"  onclick="deleteExpedition('${exp.id}')" title="Delete">✕</button>
   </div>
   <div class="card-country">
     <span class="cname">${esc(country)}</span>
+    ${exp.source === 'auto' && exp.end_date ? `<span class="cname" style="color:var(--text2);font-weight:400;font-size:11px">till ${formatDMY(exp.end_date)}</span>` : ''}
     <span class="czones">${esc(zones)}</span>
   </div>
   <div class="card-geo">
@@ -1194,6 +1410,31 @@ function buildModeFilter(){
   });
 }
 
+function buildBandFilter(){
+  const container = document.getElementById('band-filter');
+  container.innerHTML = '';
+  ALL_BANDS.forEach(b => {
+    const checked = activeBands.includes(b) ? 'checked' : '';
+    const label = document.createElement('label');
+    label.className = 'mode-cb';
+    label.innerHTML = `<input type="checkbox" value="${b}" ${checked}><span>${b}m</span>`;
+    label.querySelector('input').addEventListener('change', function(){
+      if(this.checked){
+        if(!activeBands.includes(b)) activeBands.push(b);
+        // Keep order
+        activeBands = ALL_BANDS.filter(x => activeBands.includes(x));
+      } else {
+        activeBands = activeBands.filter(x => x !== b);
+      }
+      BANDS = ALL_BANDS.filter(x => activeBands.includes(x));
+      saveBands();
+      renderGrid();
+    });
+    container.appendChild(label);
+  });
+}
+
+
 // ─── Drag & drop — SortableJS ────────────────────────────────────────────────
 let _sortable = null;
 
@@ -1335,7 +1576,7 @@ async function rotorMoveTo(az, el, label){
     const d = await r.json();
     showToast(`Rotor \u2192 ${az}\u00b0 (${label}) \u00b7 ${d.direction} ${Math.round(d.degrees||0)}\u00b0`);
   } catch(e){
-    showToast('Error enviando comando al rotor', true);
+    showToast('Error sending rotor command', true);
     el.classList.remove('rotor-sending'); rotorSendEl = null;
   }
 }
@@ -1347,9 +1588,9 @@ async function rotorStop(){
       showToast('Rotor detenido');
       if(rotorSendEl){ rotorSendEl.classList.remove('rotor-sending'); rotorSendEl = null; }
     } else {
-      showToast('Error deteniendo rotor (' + r.status + ')', true);
+      showToast('Error stopping rotor (' + r.status + ')', true);
     }
-  } catch(e){ showToast('Error deteniendo rotor: ' + e.message, true); }
+  } catch(e){ showToast('Error stopping rotor: ' + e.message, true); }
 }
 
 // ─── Start ───────────────────────────────────────────────────────────────

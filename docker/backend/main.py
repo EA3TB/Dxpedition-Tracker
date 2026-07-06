@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
 from backend import cty_parser, hrd_parser, persistence, log_readers
-from backend import hf_propagation
+from backend import hf_propagation, dx_calendar, dx_spots
 
 # ─── CTY.dat URL ─────────────────────────────────────────────────────────────
 CTY_URL = "https://www.country-files.com/bigcty/cty.dat"
@@ -139,10 +139,14 @@ class ConfigUpdate(BaseModel):
     log_path: Optional[str] = None   # path to the log file
     xml_path: Optional[str] = None   # legacy, kept for backwards compat
     active_modes: Optional[list] = None
+    active_bands: Optional[list] = None
+    dx_calendar_enabled: Optional[bool] = None
 
 
 class ExpeditionCreate(BaseModel):
     call: str
+    source: Optional[str] = None      # "auto" si viene de DX Calendar; None/"manual" en caso contrario
+    end_date: Optional[str] = None    # "YYYY-MM-DD" — fecha fin, solo para tarjetas "auto"
 
 
 class CellUpdate(BaseModel):
@@ -185,6 +189,10 @@ async def update_config(update: ConfigUpdate):
         config["locator"] = update.locator.strip()
     if update.active_modes is not None:
         config["active_modes"] = update.active_modes
+    if update.active_bands is not None:
+        config["active_bands"] = update.active_bands
+    if update.dx_calendar_enabled is not None:
+        config["dx_calendar_enabled"] = update.dx_calendar_enabled
     if update.log_type is not None:
         config["log_type"] = update.log_type
     if update.log_path is not None:
@@ -404,8 +412,8 @@ async def get_expeditions():
 async def create_expedition(body: ExpeditionCreate):
     """Create a new DXpedition entry."""
     expeditions = persistence.load_expeditions()
-    if len(expeditions) >= 10:
-        raise HTTPException(status_code=400, detail="Maximum 10 expeditions reached")
+    if len(expeditions) >= 50:
+        raise HTTPException(status_code=400, detail="Maximum 50 expeditions reached")
 
     config = persistence.load_config()
     locator = config.get("locator", "")
@@ -435,6 +443,8 @@ async def create_expedition(body: ExpeditionCreate):
     exp = {
         "id": persistence.new_expedition_id(),
         "call": call,
+        "source": body.source or "manual",
+        "end_date": body.end_date,
         "country": cty_entity["name"] if cty_entity else "",
         "continent": cty_entity["continent"] if cty_entity else "",
         "cq_zone": cty_entity["cq"] if cty_entity else 0,
@@ -462,6 +472,27 @@ async def delete_expedition(expedition_id: str):
     expeditions = [e for e in expeditions if e["id"] != expedition_id]
     persistence.save_expeditions(expeditions)
     return {"ok": True}
+
+
+@app.get("/api/dxcalendar")
+async def get_dx_calendar():
+    """Devuelve las DXpediciones actualmente activas según NG3K ADXO."""
+    try:
+        active = await dx_calendar.fetch_active_dxpeditions()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error fetching ADXO: {e}")
+    return active
+
+
+@app.get("/api/dxspots")
+async def get_dx_spots(call: str):
+    """Devuelve los últimos 15 spots para un indicativo (dxwatch.com)."""
+    try:
+        spots = await dx_spots.fetch_spots(call, rows=15)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Error fetching spots: {e}")
+    return spots
+
 
 
 @app.post("/api/expeditions/cell")
