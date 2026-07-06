@@ -196,13 +196,7 @@ td{text-align:center;font-size:8px;font-weight:700;padding:2px 1px;border:1px so
     </div>
     <div class="subbar">
       <span>Locator:</span><div class="finput" style="width:68px">JN01nq</div>
-      <div class="sb-sep"></div>
-      <span>Modes:</span>
-      <label class="cb"><input type="checkbox" checked><span>CW</span></label>
-      <label class="cb"><input type="checkbox" checked><span>SSB</span></label>
-      <label class="cb"><input type="checkbox" checked><span>FT8</span></label>
-      <label class="cb"><input type="checkbox" checked><span>FT4</span></label>
-      <label class="cb"><input type="checkbox"><span>RTTY</span></label>
+      <label class="cb" style="margin-left:8px"><input type="checkbox" checked><span>DX Calendar</span></label>
       <div style="margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0">
         <span>Log:</span>
         <div class="finput" style="width:80px">HRD XML</div>
@@ -212,18 +206,27 @@ td{text-align:center;font-size:8px;font-weight:700;padding:2px 1px;border:1px so
         <button class="fbtn">↺</button>
       </div>
     </div>
+    <div class="subbar">
+      <span>Modes:</span>
+      <label class="cb"><input type="checkbox" checked><span>CW</span></label>
+      <label class="cb"><input type="checkbox" checked><span>SSB</span></label>
+      <label class="cb"><input type="checkbox" checked><span>FT8</span></label>
+      <label class="cb"><input type="checkbox" checked><span>FT4</span></label>
+      <label class="cb"><input type="checkbox"><span>RTTY</span></label>
+      <div class="sb-sep"></div>
+      <span>Power:</span><div class="finput" style="width:44px">100W</div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;font-size:9px;color:var(--t2)">
+        <span>cty.dat:</span><span class="ctybdg">✓ 4041 entities</span><span>2025-01-15</span>
+      </div>
+    </div>
     <div class="bandbar">
       <span style="font-size:9px;color:var(--t2);flex-shrink:0">Bands:</span>
-      <span class="pill">13cm</span><span class="pill">23cm</span>
-      <span class="pill on">6m</span><span class="pill on">8m</span><span class="pill on">10m</span><span class="pill on">12m</span><span class="pill on">15m</span><span class="pill on">17m</span><span class="pill on">20m</span><span class="pill on">30m</span><span class="pill on">40m</span><span class="pill on">60m</span><span class="pill on">80m</span><span class="pill on">160m</span>
-    </div>
-    <div class="ctybar">
-      <span>cty.dat:</span><span class="ctybdg">✓ 4041 entities</span><span>2025-01-15</span>
+      <span class="pill on">6m</span><span class="pill on">10m</span><span class="pill on">12m</span><span class="pill on">15m</span><span class="pill on">17m</span><span class="pill on">20m</span><span class="pill on">30m</span><span class="pill on">40m</span><span class="pill on">80m</span><span class="pill on">160m</span>
     </div>
     <div class="grid">
       <div class="card">
-        <div class="card-hdr"><div class="card-call">VK9DX</div><div class="cbtn">↺</div><div class="cbtn">✕</div></div>
-        <div class="card-ctry"><span class="cn">Norfolk Island</span><span>OC · CQ28 · ITU60</span></div>
+        <div class="card-hdr"><div class="card-call">VK9DX</div><div class="cbtn">↺</div><div class="cbtn" style="font-size:6px;font-weight:700">DX</div><div class="cbtn">✕</div></div>
+        <div class="card-ctry"><span class="cn">Norfolk Island</span><span style="color:var(--t2);font-weight:400">till 15/08/2026</span><span>OC · CQ28 · ITU60</span></div>
         <div class="card-geo">
           <div class="gi"><div class="gl">SP</div><div class="gv gsp">52°</div></div>
           <div class="gi"><div class="gl">LP</div><div class="gv glp">232°</div></div>
@@ -238,7 +241,7 @@ td{text-align:center;font-size:8px;font-weight:700;padding:2px 1px;border:1px so
         </tbody></table>
       </div>
       <div class="card">
-        <div class="card-hdr"><div class="card-call">TX5N</div><div class="cbtn">↺</div><div class="cbtn">✕</div></div>
+        <div class="card-hdr"><div class="card-call">TX5N</div><div class="cbtn">↺</div><div class="cbtn" style="font-size:6px;font-weight:700">DX</div><div class="cbtn">✕</div></div>
         <div class="card-ctry"><span class="cn">Clipperton Island</span><span>NA · CQ7 · ITU8</span></div>
         <div class="card-geo">
           <div class="gi"><div class="gl">SP</div><div class="gv gsp">288°</div></div>
@@ -254,7 +257,7 @@ td{text-align:center;font-size:8px;font-weight:700;padding:2px 1px;border:1px so
         </tbody></table>
       </div>
       <div class="card">
-        <div class="card-hdr"><div class="card-call">3Y0J</div><div class="cbtn">↺</div><div class="cbtn">✕</div></div>
+        <div class="card-hdr"><div class="card-call">3Y0J</div><div class="cbtn">↺</div><div class="cbtn" style="font-size:6px;font-weight:700">DX</div><div class="cbtn">✕</div></div>
         <div class="card-ctry"><span class="cn">Bouvet Island</span><span>AF · CQ38 · ITU67</span></div>
         <div class="card-geo">
           <div class="gi"><div class="gl">SP</div><div class="gv gsp">174°</div></div>
@@ -297,7 +300,7 @@ td{text-align:center;font-size:8px;font-weight:700;padding:2px 1px;border:1px so
     </div>
     <div class="info-card">
       <h3>Propagación SP% / LP%</h3>
-      <p>Cálculo en tiempo real usando el índice Kp (NOAA) y el SFI (hamqsl.com). Se calcula para todas las bandas HF activas. Las bandas 13cm y 23cm muestran — ya que no usan propagación ionosférica.</p>
+      <p>Cálculo en tiempo real usando el índice Kp (NOAA) y el SFI/SSN (hamqsl.com), para la potencia de emisión y los modos activos seleccionados. Se muestra el mejor valor entre todos los modos activos.</p>
       <ul>
         <li><span class="prop-good">● Verde ≥70%</span> — buena propagación</li>
         <li><span class="prop-ok">● Naranja 40–69%</span> — propagación aceptable</li>
@@ -314,7 +317,7 @@ td{text-align:center;font-size:8px;font-weight:700;padding:2px 1px;border:1px so
         <li>Arrastra las tarjetas por la cabecera para reordenarlas</li>
         <li>Botón <strong>↺</strong> recarga los QSOs del log para esa entidad</li>
         <li>Botón <strong>✕</strong> elimina la tarjeta y todos sus datos</li>
-        <li>Máximo 10 tarjetas simultáneas</li>
+        <li>Máximo 50 tarjetas simultáneas</li>
       </ul>
     </div>
   </div>
@@ -358,6 +361,68 @@ td{text-align:center;font-size:8px;font-weight:700;padding:2px 1px;border:1px so
     </tbody>
   </table>
 
+  <!-- ════════════════════ DX CALENDAR -->
+  <h2><span class="icon">📅</span> DX Calendar</h2>
+  <p>Crea y elimina automáticamente tarjetas de DXpedición según el calendario <a href="https://www.ng3k.com/Misc/adxo.html" style="color:var(--acc)">NG3K Announced DX Operations</a>.</p>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h3>Cómo funciona</h3>
+      <ul>
+        <li>Se activa con el checkbox <strong>DX Calendar</strong> junto al locator</li>
+        <li>En cada carga del dashboard se añaden automáticamente las DXpediciones activas (fecha actual dentro de su periodo anunciado)</li>
+        <li>Las tarjetas cuya DXpedición ha finalizado se eliminan automáticamente</li>
+        <li>Las tarjetas autogeneradas muestran <strong>&quot;till DD/MM/YYYY&quot;</strong> junto al nombre del país</li>
+        <li>Al desactivar el checkbox se eliminan de inmediato todas las tarjetas autogeneradas</li>
+      </ul>
+    </div>
+    <div class="info-card">
+      <h3>Tarjetas manuales</h3>
+      <p>Las tarjetas añadidas manualmente con <strong>+ New DXpedition</strong> nunca son tocadas por DX Calendar — son independientes y deben eliminarse a mano con <strong>✕</strong>.</p>
+      <p style="margin-top:.5rem">Las tarjetas autogeneradas se ordenan entre sí por fecha de finalización (más cercana primero); las manuales mantienen su posición.</p>
+    </div>
+  </div>
+
+  <div class="notice">
+    El número máximo de tarjetas simultáneas es 50, para dar cabida a DX Calendar más las entradas manuales.
+  </div>
+
+  <!-- ════════════════════ DX SPOTS -->
+  <h2><span class="icon">📡</span> DX Spots</h2>
+  <p>Muestra los últimos spots del indicativo de una DXpedición, consultados en directo desde <a href="https://www.dxwatch.com" style="color:var(--acc)">dxwatch.com</a>.</p>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h3>Uso</h3>
+      <ul>
+        <li>Pulsa el botón <strong>DX</strong> en la cabecera de cualquier tarjeta</li>
+        <li>Una ventana flotante muestra los últimos 15 spots: UTC, MHz, DE, Comments</li>
+        <li>Los datos se consultan una sola vez al abrir — sin auto-refresco</li>
+        <li>Se cierra haciendo clic fuera de la ventana o en la ✕</li>
+      </ul>
+    </div>
+    <div class="info-card">
+      <h3>Notas</h3>
+      <p>Los spots reflejan el indicativo operativo exacto reportado por el cluster (p. ej. <code>FS/F4EQE</code>), que puede diferir del prefijo de entidad DXCC mostrado en la tarjeta.</p>
+    </div>
+  </div>
+
+  <div style="max-width:360px;background:var(--ibg);border:1.5px solid var(--bdr);border-radius:8px;overflow:hidden;margin:1rem 0;font-size:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg2);border-bottom:1px solid var(--sep)">
+      <span style="font-size:12px;font-weight:700;color:var(--t1)">DX Spots — FS/F4EQE</span>
+      <span style="color:var(--t2)">✕</span>
+    </div>
+    <div style="display:flex;color:var(--t2);padding:4px 8px;font-weight:700">
+      <div style="width:50px">UTC</div><div style="width:60px">MHz</div><div style="width:60px">DE</div><div style="flex:1">Comments</div>
+    </div>
+    <div style="display:flex;padding:3px 8px;border-top:1px solid var(--sep);color:var(--t1)">
+      <div style="width:50px">0551z</div><div style="width:60px">18100.0</div><div style="width:60px">4Z5PT</div><div style="flex:1;color:var(--t2)">FT8 TNX 73!</div>
+    </div>
+    <div style="display:flex;padding:3px 8px;border-top:1px solid var(--sep);color:var(--t1)">
+      <div style="width:50px">0441z</div><div style="width:60px">3573.0</div><div style="width:60px">F6BLP</div><div style="flex:1;color:var(--t2)">FT8 -16dB</div>
+    </div>
+  </div>
+
   <!-- ════════════════════ FILTROS -->
   <h2><span class="icon">🎛</span> Filtros de modos y bandas</h2>
   <p>Todos los filtros se guardan automáticamente en <code>config.json</code> y persisten entre sesiones.</p>
@@ -365,11 +430,11 @@ td{text-align:center;font-size:8px;font-weight:700;padding:2px 1px;border:1px so
   <div class="info-grid">
     <div class="info-card">
       <h3>Filtro de modos</h3>
-      <p>Checkboxes <strong>CW / SSB / FT8 / FT4 / RTTY</strong> en la barra de control. Solo se muestran las columnas de los modos seleccionados en todas las tarjetas simultáneamente.</p>
+      <p>Checkboxes <strong>CW / SSB / FT8 / FT4 / RTTY</strong> en la barra de control. Solo se muestran las columnas de los modos seleccionados en todas las tarjetas simultáneamente. Un selector de <strong>Power</strong> (100W / 500W / 1000W) junto a los modos también afecta al cálculo de propagación SP%/LP%.</p>
     </div>
     <div class="info-card">
       <h3>Filtro de bandas</h3>
-      <p>Pills seleccionables para las 14 bandas disponibles (13cm, 23cm, 6m, 8m, 10m … 160m). Las bandas <strong>13cm y 23cm están desactivadas por defecto</strong>. Solo se muestran las filas de las bandas activas en cada tarjeta.</p>
+      <p>Pills seleccionables para las 10 bandas HF disponibles (6m, 10m, 12m, 15m, 17m, 20m, 30m, 40m, 80m, 160m). Todas las bandas están activas por defecto. Solo se muestran las filas de las bandas activas en cada tarjeta.</p>
     </div>
   </div>
 
