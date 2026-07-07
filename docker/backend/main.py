@@ -510,7 +510,7 @@ async def update_cell(body: CellUpdate):
 
     if body.action == "click":
         s = cell.get("s", "empty")
-        if s in ("confirmed", "disabled"):
+        if s in ("disabled",):
             raise HTTPException(status_code=400, detail="Cell not clickable")
         cell["p"] = s
         cell["s"] = "new"
