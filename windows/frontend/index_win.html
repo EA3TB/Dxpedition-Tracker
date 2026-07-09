@@ -1143,8 +1143,8 @@ async function newExpedition(){
       'Por favor selecciona el archivo o carpeta del log (HRD XML, MDB, SQLite o ADIF) antes de añadir una DXpedición.\n\nUsa el botón 📁 Browse para seleccionar la fuente de log.');
     return;
   }
-  if(expeditions.length >= 10){
-    showToast('Maximum 10 DXpeditions', true);
+  if(expeditions.length >= 50){
+    showToast('Maximum 50 DXpeditions', true);
     return;
   }
   const call = prompt('DXpedition callsign:');
@@ -1329,7 +1329,7 @@ function renderGrid(){
     html += buildCard(exp);
   });
 
-  if(expeditions.length < 10){
+  if(expeditions.length < 50){
     html += `<div class="card-add" onclick="newExpedition()">
       <div class="card-add-icon">＋</div>
       <div class="card-add-lbl">New DXpedition</div>

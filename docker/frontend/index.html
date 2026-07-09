@@ -1025,8 +1025,8 @@ async function reloadXml(){
 
 // ─── Expeditions ─────────────────────────────────────────────────────────
 async function newExpedition(){
-  if(expeditions.length >= 10){
-    showToast('Maximum 6 DXpeditions', true);
+  if(expeditions.length >= 50){
+    showToast('Maximum 50 DXpeditions', true);
     return;
   }
   const call = prompt('DXpedition callsign:');
@@ -1210,7 +1210,7 @@ function renderGrid(){
     html += buildCard(exp);
   });
 
-  if(expeditions.length < 10){
+  if(expeditions.length < 50){
     html += `<div class="card-add" onclick="newExpedition()">
       <div class="card-add-icon">＋</div>
       <div class="card-add-lbl">New DXpedition</div>
