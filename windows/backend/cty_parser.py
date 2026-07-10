@@ -122,6 +122,20 @@ def _match_prefix(call: str):
     return None, 0
 
 
+def _is_bare_prefix(part: str) -> bool:
+    """
+    True if `part` looks like a bare DXCC/location prefix (e.g. "JD1", "FS",
+    "VP8", "EX", "3D2") rather than a complete operator callsign (e.g.
+    "JK1HFB", "PY8WW", "F4EQE", "KZ1R").
+
+    The distinguishing feature: a real operator callsign always has a suffix
+    of letters AFTER its last digit; a bare location prefix never does (it
+    ends at the digit, or has no digit at all).
+    """
+    m = re.search(r"\d(?!.*\d)", part)  # last digit, if any
+    return (m is None) or (m.end() == len(part))
+
+
 # Suffixes/prefixes that only indicate an operating mode, not a DXCC change
 # (portable, mobile, maritime mobile, QRP...), or a same-country call-area
 # digit (e.g. W1ABC/5) — these must NOT be treated as the country-determining
@@ -137,11 +151,16 @@ def lookup_callsign(callsign: str) -> Optional[dict]:
       1. Exact match (=CALL)
       2. Longest prefix match (greedy from full call down to 1 char)
 
-    Compound callsigns (A/B, e.g. "JK1HFB/JD1" or "FS/F4EQE") are supported:
-    both sides are matched independently against the CTY table, and the side
-    giving the MORE SPECIFIC (longer) prefix match wins — this is how cty.dat
-    is designed (exception prefixes for portable operations are entered as
-    longer, more specific strings than the operator's home-call prefix).
+    Compound callsigns (A/B, e.g. "JK1HFB/JD1" or "FS/F4EQE") are supported.
+    The side that looks like a bare location prefix (no letters after its
+    last digit — e.g. "JD1", "FS", "VP8") determines the country, since that
+    is the actual DXCC/location indicator; the side that looks like a
+    complete operator callsign (has letters after its last digit — e.g.
+    "JK1HFB", "PY8WW") is just the operator's home call and is ignored for
+    country purposes, even if it happens to match a longer/more specific
+    cty.dat prefix (e.g. Brazil's zone-specific "PY8" sub-prefix).
+    If both sides — or neither — look like a bare prefix, the longer/more
+    specific cty.dat match wins as a tie-break.
     Pure operating indicators (/P, /M, /MM, /QRP, /5, ...) are ignored.
     """
     call = callsign.upper().strip()
@@ -153,15 +172,28 @@ def lookup_callsign(callsign: str) -> Optional[dict]:
             if p not in _NON_DXCC_INDICATORS and not p.isdigit()
         ]
         if candidates:
+            bare = [p for p in candidates if _is_bare_prefix(p)]
+            pool = bare if bare else candidates
+
             best_entity, best_len = None, -1
-            for part in candidates:
+            for part in pool:
                 entity, matched_len = _match_prefix(part)
                 if entity and matched_len > best_len:
                     best_entity, best_len = entity, matched_len
             if best_entity:
                 return best_entity
-            # None of the candidates matched anything known — fall back to
-            # treating the first non-indicator part as a plain callsign.
+
+            # Nothing in the preferred pool matched — try the rest before
+            # giving up (e.g. bare side isn't a known prefix at all).
+            for part in candidates:
+                if part in pool:
+                    continue
+                entity, matched_len = _match_prefix(part)
+                if entity and matched_len > best_len:
+                    best_entity, best_len = entity, matched_len
+            if best_entity:
+                return best_entity
+
             call = candidates[0]
         elif parts:
             call = parts[0]
