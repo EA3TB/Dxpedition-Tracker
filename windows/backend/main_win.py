@@ -886,6 +886,10 @@ def _enrich_expedition(exp: dict, locator_coords, merge_hrd: bool = False):
     if cty_entity:
         exp["dx_lat"] = cty_entity["lat"]
         exp["dx_lon"] = cty_entity["lon"]
+        exp["country"] = cty_entity["name"]
+        exp["continent"] = cty_entity["continent"]
+        exp["cq_zone"] = cty_entity["cq"]
+        exp["itu_zone"] = cty_entity["itu"]
     if locator_coords and cty_entity:
         geo = cty_parser.calculate_bearing_distance(
             locator_coords[0], locator_coords[1],

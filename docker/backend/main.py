@@ -791,10 +791,15 @@ def _enrich_expedition(exp: dict, locator_coords, merge_hrd: bool = False):
 
     cty_entity = cty_parser.lookup_callsign(call) if state.cty_loaded else None
 
-    # Always set dx_lat/dx_lon from CTY
+    # Always set dx_lat/dx_lon and country/zone info from CTY (self-heals
+    # cards created before a cty_parser fix/update, e.g. compound calls)
     if cty_entity:
         exp["dx_lat"] = cty_entity["lat"]
         exp["dx_lon"] = cty_entity["lon"]
+        exp["country"] = cty_entity["name"]
+        exp["continent"] = cty_entity["continent"]
+        exp["cq_zone"] = cty_entity["cq"]
+        exp["itu_zone"] = cty_entity["itu"]
 
     # Update geo
     if locator_coords and cty_entity:

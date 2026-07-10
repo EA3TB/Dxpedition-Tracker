@@ -106,27 +106,67 @@ def load_cty(text: str):
     return len(_CTY_DB)
 
 
-def lookup_callsign(callsign: str) -> Optional[dict]:
+def _match_prefix(call: str):
     """
-    Given a callsign, return the matching CTY entity.
-    Strategy:
-      1. Exact match (=CALL)
-      2. Longest prefix match (greedy from full call down to 1 char)
+    Returns (entity, matched_length) — the entity for the longest matching
+    prefix of `call`, or (None, 0) if nothing matches.
     """
-    call = callsign.upper().strip()
-
-    # 1. Exact match
     if call in _EXACT_MAP:
-        return _EXACT_MAP[call]
+        return _EXACT_MAP[call], len(call)
 
-    # 2. Longest prefix match
-    # Try progressively shorter substrings
     for length in range(len(call), 0, -1):
         candidate = call[:length]
         if candidate in _PREFIX_MAP:
-            return _PREFIX_MAP[candidate]
+            return _PREFIX_MAP[candidate], length
 
-    return None
+    return None, 0
+
+
+# Suffixes/prefixes that only indicate an operating mode, not a DXCC change
+# (portable, mobile, maritime mobile, QRP...), or a same-country call-area
+# digit (e.g. W1ABC/5) — these must NOT be treated as the country-determining
+# side of a compound callsign.
+_NON_DXCC_INDICATORS = {"P", "M", "MM", "AM", "A", "B", "R", "QRP", "J"}
+
+
+def lookup_callsign(callsign: str) -> Optional[dict]:
+    """
+    Given a callsign, return the matching CTY entity.
+
+    Strategy:
+      1. Exact match (=CALL)
+      2. Longest prefix match (greedy from full call down to 1 char)
+
+    Compound callsigns (A/B, e.g. "JK1HFB/JD1" or "FS/F4EQE") are supported:
+    both sides are matched independently against the CTY table, and the side
+    giving the MORE SPECIFIC (longer) prefix match wins — this is how cty.dat
+    is designed (exception prefixes for portable operations are entered as
+    longer, more specific strings than the operator's home-call prefix).
+    Pure operating indicators (/P, /M, /MM, /QRP, /5, ...) are ignored.
+    """
+    call = callsign.upper().strip()
+
+    if "/" in call:
+        parts = [p for p in call.split("/") if p]
+        candidates = [
+            p for p in parts
+            if p not in _NON_DXCC_INDICATORS and not p.isdigit()
+        ]
+        if candidates:
+            best_entity, best_len = None, -1
+            for part in candidates:
+                entity, matched_len = _match_prefix(part)
+                if entity and matched_len > best_len:
+                    best_entity, best_len = entity, matched_len
+            if best_entity:
+                return best_entity
+            # None of the candidates matched anything known — fall back to
+            # treating the first non-indicator part as a plain callsign.
+            call = candidates[0]
+        elif parts:
+            call = parts[0]
+
+    return _match_prefix(call)[0]
 
 
 def get_all_entities() -> list[dict]:
